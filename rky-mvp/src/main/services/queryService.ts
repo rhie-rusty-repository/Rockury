@@ -2,6 +2,7 @@ import { queryRepository, queryHistoryRepository } from '#/repositories';
 import { connectionService } from './connectionService';
 import { createMysqlConnection, closeMysqlConnection } from '#/infrastructure';
 import { createPgConnection, closePgConnection } from '#/infrastructure';
+import { createSqliteConnection, closeSqliteConnection } from '#/infrastructure';
 import type { IQuery, IQueryResult, IQueryHistory, IExplainResult } from '~/shared/types/db';
 import type { TDbType } from '~/shared/types/db';
 import { classifyQueryType, buildExplainAnalyzeSql, parseExplainSummary } from '~/shared/lib/explainSql';
@@ -126,7 +127,18 @@ export const queryService = {
         }
       }
     } else if (dbType === 'sqlite') {
-      return { planRows: [], summary: 'SQLite EXPLAIN not yet supported', rawJson: undefined };
+      const db = createSqliteConnection({ database: config.database });
+      try {
+        const rows = db.prepare(explainSql).all() as Record<string, unknown>[];
+        result = {
+          columns: rows.length > 0 ? Object.keys(rows[0]) : [],
+          rows,
+          rowCount: rows.length,
+          executionTimeMs: 0,
+        };
+      } finally {
+        closeSqliteConnection(db);
+      }
     } else {
       result = await this.executeQuery(connectionId, explainSql);
     }
