@@ -14,6 +14,7 @@ import { DmlResultPanel } from './DmlResultPanel';
 import { SchemaPanel } from './SchemaPanel';
 import { TablePreviewModal } from './TablePreviewModal';
 import { ExplainSummaryBanner } from './ExplainSummaryBanner';
+import { ExplainPlanView } from './ExplainPlanView';
 import { extractKeywords, replaceKeywords } from '../lib/keywords';
 import type { TDbType } from '~/shared/types/db';
 
@@ -505,7 +506,7 @@ export function QueryTab({ connectionId, dbType }: QueryTabProps) {
                 )}
 
                 {/* EXPLAIN ANALYZE summary banner */}
-                {execution.explainResult?.summary && (
+                {!execution.isExplainOnly && execution.explainResult?.summary && (
                   <ExplainSummaryBanner summary={execution.explainResult.summary} />
                 )}
 
@@ -529,6 +530,8 @@ export function QueryTab({ connectionId, dbType }: QueryTabProps) {
                       onRollback={() => {}}
                     />
                   </div>
+                ) : execution.isExplainOnly && execution.explainResult ? (
+                  <ExplainPlanView result={execution.explainResult} dbType={dbType} />
                 ) : hasSelectResult ? (
                   <DataGrid
                     result={execution.result!}
