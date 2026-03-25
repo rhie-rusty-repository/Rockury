@@ -83,11 +83,17 @@ function parseMysqlBlock(block: Record<string, unknown>, dbType: TDbType): IPlan
   }
   const ordering = block.ordering_operation as Record<string, unknown> | undefined;
   if (ordering) children.push(parseMysqlBlock(ordering, dbType));
+  const subqueries = block.attached_subqueries as Record<string, unknown>[] | undefined;
+  if (Array.isArray(subqueries)) {
+    for (const sq of subqueries) {
+      if (sq.query_block) children.push(parseMysqlBlock(sq.query_block as Record<string, unknown>, dbType));
+    }
+  }
 
   const source = table ?? block;
   const properties: IPlanProperty[] = [];
   for (const [key, value] of Object.entries(source)) {
-    if (key === 'table' || key === 'nested_loop' || key === 'ordering_operation' || key === 'query_block') continue;
+    if (key === 'table' || key === 'nested_loop' || key === 'ordering_operation' || key === 'query_block' || key === 'attached_subqueries') continue;
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       for (const [subKey, subVal] of Object.entries(value as Record<string, unknown>)) {
         properties.push({
@@ -121,6 +127,7 @@ function parseSqliteNodes(result: IExplainResult): IPlanNode[] {
           key,
           value,
           description: getFieldDescription(key, 'sqlite'),
+          highlight: HIGHLIGHT_FIELDS.has(key),
         })),
       children: [],
     }));

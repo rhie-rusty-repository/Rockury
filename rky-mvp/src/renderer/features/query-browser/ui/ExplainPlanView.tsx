@@ -104,7 +104,7 @@ function PlanNodeTree({ node, depth, defaultExpanded = false }: PlanNodeTreeProp
 
       {/* Expanded: properties table + children */}
       {expanded && (
-        <div className={depth >= 0 ? 'ml-5 border-l border-border pl-4' : ''}>
+        <div className={depth > 0 ? 'ml-5 border-l border-border pl-4' : ''}>
           {hasProperties && (
             <table className="mb-2 w-full border-collapse">
               <tbody>

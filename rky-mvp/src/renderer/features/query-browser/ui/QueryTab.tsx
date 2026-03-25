@@ -530,6 +530,11 @@ export function QueryTab({ connectionId, dbType }: QueryTabProps) {
                       onRollback={() => {}}
                     />
                   </div>
+                ) : execution.isLoading ? (
+                  <div className="flex flex-1 items-center justify-center text-muted-foreground">
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    <span className="text-sm">Executing...</span>
+                  </div>
                 ) : execution.isExplainOnly && execution.explainResult ? (
                   <ExplainPlanView result={execution.explainResult} dbType={dbType} />
                 ) : hasSelectResult ? (
@@ -547,11 +552,6 @@ export function QueryTab({ connectionId, dbType }: QueryTabProps) {
                     onCellSave={() => {}}
                     onRowContextMenu={() => {}}
                   />
-                ) : execution.isLoading ? (
-                  <div className="flex flex-1 items-center justify-center text-muted-foreground">
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                    <span className="text-sm">Executing...</span>
-                  </div>
                 ) : null}
 
                 {/* Footer */}
