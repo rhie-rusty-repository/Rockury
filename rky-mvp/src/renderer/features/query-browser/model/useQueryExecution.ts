@@ -2,7 +2,6 @@ import { useState, useCallback, useRef } from 'react';
 import { queryApi } from '@/features/query-execution/api/queryApi';
 import { queryBrowserApi } from '../api/queryBrowserApi';
 import { isDdl } from '../lib/ddlDetection';
-import { buildExplainSql } from '~/shared/lib/explainSql';
 import type { IQueryResult, IExplainResult, TDbType } from '~/shared/types/db';
 
 interface TxState {
@@ -18,6 +17,7 @@ export function useQueryExecution(connectionId: string, dbType?: TDbType) {
   const [isLoading, setIsLoading] = useState(false);
   const [txState, setTxState] = useState<TxState | null>(null);
   const [isDdlWarning, setIsDdlWarning] = useState(false);
+  const [isExplainOnly, setIsExplainOnly] = useState(false);
 
   // Generation counter to discard stale EXPLAIN results from previous runs
   const genRef = useRef(0);
@@ -29,6 +29,7 @@ export function useQueryExecution(connectionId: string, dbType?: TDbType) {
     setExplainResult(null);
     setTxState(null);
     setIsDdlWarning(false);
+    setIsExplainOnly(false);
     setIsLoading(true);
 
     try {
@@ -89,13 +90,13 @@ export function useQueryExecution(connectionId: string, dbType?: TDbType) {
     setExplainResult(null);
     setTxState(null);
     setIsDdlWarning(false);
+    setIsExplainOnly(true);
     setIsLoading(true);
 
     try {
-      const explainSql = buildExplainSql(dbType, sql);
-      const res = await queryApi.execute({ connectionId, sql: explainSql });
+      const res = await queryApi.explainAnalyze({ connectionId, sql, dbType });
       if (!res.success) throw new Error((res as any).error ?? 'EXPLAIN failed');
-      setResult(res.data ?? null);
+      setExplainResult(res.data ?? null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -129,16 +130,8 @@ export function useQueryExecution(connectionId: string, dbType?: TDbType) {
   const dismissError = useCallback(() => setError(null), []);
 
   return {
-    result,
-    explainResult,
-    error,
-    isLoading,
-    txState,
-    isDdlWarning,
-    execute,
-    explain,
-    confirm,
-    rollback,
-    dismissError,
+    result, explainResult, error, isLoading, txState, isDdlWarning,
+    isExplainOnly,
+    execute, explain, confirm, rollback, dismissError,
   };
 }
