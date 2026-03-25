@@ -1,7 +1,6 @@
 // src/renderer/features/query-browser/ui/ExplainPlanView.tsx
 import { useState } from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
-import { ExplainSummaryBanner } from './ExplainSummaryBanner';
 import { parsePlanNodes, type IPlanNode, type IPlanProperty } from '~/shared/lib/explainPlanParser';
 import type { IExplainResult, TDbType } from '~/shared/types/db';
 
@@ -16,8 +15,7 @@ export function ExplainPlanView({ result, dbType }: ExplainPlanViewProps) {
   if (nodes.length === 0) {
     return (
       <div className="flex flex-1 flex-col">
-        {result.summary && <ExplainSummaryBanner summary={result.summary} />}
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+                <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           {result.planRows.length > 0 ? (
             <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded bg-muted/30 p-4 text-xs">
               {JSON.stringify(result.rawJson ?? result.planRows, null, 2)}
@@ -32,8 +30,7 @@ export function ExplainPlanView({ result, dbType }: ExplainPlanViewProps) {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {result.summary && <ExplainSummaryBanner summary={result.summary} />}
-      <div className="flex-1 overflow-auto p-3">
+            <div className="flex-1 overflow-auto p-3">
         {nodes.map((node, i) => (
           <PlanNodeTree key={i} node={node} depth={0} defaultExpanded />
         ))}

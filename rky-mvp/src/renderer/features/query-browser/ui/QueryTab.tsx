@@ -507,7 +507,11 @@ export function QueryTab({ connectionId, dbType }: QueryTabProps) {
 
                 {/* EXPLAIN ANALYZE summary banner */}
                 {!execution.isExplainOnly && execution.explainResult?.summary && (
-                  <ExplainSummaryBanner summary={execution.explainResult.summary} />
+                  <ExplainSummaryBanner
+                    summary={execution.explainResult.summary}
+                    explainResult={execution.explainResult}
+                    dbType={dbType}
+                  />
                 )}
 
                 {/* Result area */}
