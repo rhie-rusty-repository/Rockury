@@ -404,6 +404,10 @@ const ALL_MIGRATIONS = [
 
 export function runMigrations(db: Database.Database): void {
   db.pragma('journal_mode = WAL');
+  // WAL 동반 설정: 쓰기 fsync 스톨 감소 + GUI와 MCP 서버가 rockury.db를 동시에
+  // 열 때 SQLITE_BUSY 즉시 에러 대신 최대 3초 대기(메인 스레드 스톨 상한).
+  db.pragma('synchronous = NORMAL');
+  db.pragma('busy_timeout = 3000');
   db.pragma('foreign_keys = ON');
 
   const migrate = db.transaction(() => {
