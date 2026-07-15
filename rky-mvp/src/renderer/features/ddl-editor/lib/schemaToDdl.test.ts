@@ -180,6 +180,69 @@ describe('schemaToDdl', () => {
     );
   });
 
+  it('uses SERIAL family for PostgreSQL auto-increment columns', () => {
+    const table = makeTable([
+      {
+        id: 'col-id',
+        name: 'id',
+        dataType: 'BIGINT',
+        keyTypes: ['PK'],
+        isAutoIncrement: true,
+        defaultValue: null,
+        nullable: false,
+        comment: '',
+        reference: null,
+        constraints: [],
+        ordinalPosition: 1,
+      },
+    ]);
+
+    const ddl = schemaToDdl([table], 'postgresql');
+    expect(ddl).toContain('"id" BIGSERIAL');
+    // SERIAL implies NOT NULL — should not be duplicated
+    expect(ddl).not.toContain('BIGSERIAL NOT NULL');
+  });
+
+  it('emits CREATE INDEX for IDX constraints', () => {
+    const table: ITable = {
+      id: 'tbl-cards',
+      name: 'cards',
+      comment: '',
+      columns: [
+        {
+          id: 'c1',
+          name: 'id',
+          dataType: 'BIGINT',
+          keyTypes: ['PK'],
+          defaultValue: null,
+          nullable: false,
+          comment: '',
+          reference: null,
+          constraints: [],
+          ordinalPosition: 1,
+        },
+        {
+          id: 'c2',
+          name: 'tcgplayer_id',
+          dataType: 'BIGINT',
+          keyTypes: [],
+          defaultValue: null,
+          nullable: true,
+          comment: '',
+          reference: null,
+          constraints: [],
+          ordinalPosition: 2,
+        },
+      ],
+      constraints: [
+        { type: 'IDX', name: 'idx_cards_tcgplayer_id', columns: ['tcgplayer_id'] },
+      ],
+    };
+
+    const ddl = schemaToDdl([table], 'postgresql');
+    expect(ddl).toContain('CREATE INDEX "idx_cards_tcgplayer_id" ON "cards" ("tcgplayer_id");');
+  });
+
   it('orders tables so referenced table is created first', () => {
     const parent: ITable = {
       id: 't-parent',

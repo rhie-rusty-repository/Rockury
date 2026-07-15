@@ -88,19 +88,34 @@ function tableToCreateDdl(table: ITable, dbType: TDbType): string {
     }
   }
 
-  return ddl + ';';
+  // Non-unique indexes are separate statements (UNIQUE is emitted inline as a constraint).
+  const statements = [ddl + ';'];
+  for (const constraint of table.constraints) {
+    if (constraint.type === 'IDX' && constraint.columns.length > 0) {
+      const idxName = constraint.name || `idx_${table.name}_${constraint.columns.join('_')}`;
+      statements.push(
+        `CREATE INDEX ${q(idxName)} ON ${q(table.name)} (${constraint.columns.map((c) => q(c)).join(', ')});`,
+      );
+    }
+  }
+
+  return statements.join('\n');
 }
 
 function columnToDdl(col: IColumn, dbType: TDbType): string {
   const q = (name: string) => quote(name, dbType);
-  const parts: string[] = [q(col.name), col.dataType];
+  // PostgreSQL expresses auto-increment via the SERIAL pseudo-type, which also
+  // implies NOT NULL and provides its own sequence default.
+  const isPgSerial = !!col.isAutoIncrement && dbType === 'postgresql';
+  const dataType = isPgSerial ? pgSerialType(col.dataType) : col.dataType;
+  const parts: string[] = [q(col.name), dataType];
 
-  if (!col.nullable) parts.push('NOT NULL');
+  if (!col.nullable && !isPgSerial) parts.push('NOT NULL');
   if (col.isAutoIncrement && (dbType === 'mysql' || dbType === 'mariadb')) {
     parts.push('AUTO_INCREMENT');
   }
 
-  if (col.defaultValue !== null && col.defaultValue !== undefined) {
+  if (!isPgSerial && col.defaultValue !== null && col.defaultValue !== undefined) {
     parts.push(`DEFAULT ${quoteDefault(col.defaultValue)}`);
   }
 
@@ -109,6 +124,13 @@ function columnToDdl(col: IColumn, dbType: TDbType): string {
   }
 
   return parts.join(' ');
+}
+
+function pgSerialType(dataType: string): string {
+  const t = dataType.toUpperCase();
+  if (t.includes('BIGINT') || t === 'INT8') return 'BIGSERIAL';
+  if (t.includes('SMALLINT') || t === 'INT2') return 'SMALLSERIAL';
+  return 'SERIAL';
 }
 
 function constraintToDdl(constraint: IConstraint, dbType: TDbType): string | null {
