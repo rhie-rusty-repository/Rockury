@@ -3,7 +3,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
-import { listDiagrams, getDiagramById, getDiagramByName, createDiagram, updateDiagram } from './lib/store.mjs';
+import { listDiagrams, getDiagramById, getDiagramByName, createDiagram, updateDiagram, closeDb } from './lib/store.mjs';
 import { generateDdl, parseDdl } from './lib/ddl.mjs';
 import { normalizeTables } from './lib/normalize.mjs';
 import { resolveDbPath } from './lib/dbPath.mjs';
@@ -293,3 +293,45 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 // Log to stderr only — stdout is reserved for the JSON-RPC protocol.
 console.error(`[rky-schema] MCP server ready. DB: ${resolveDbPath()}`);
+
+/**
+ * Lifecycle / shutdown.
+ *
+ * As a stdio server this process must die when the client is done with it.
+ * The MCP SDK's StdioServerTransport only listens for stdin 'data'/'error' — it
+ * has NO handler for stdin end/close and never self-terminates. So if a client
+ * abandons the connection without closing our stdin pipe or sending a signal
+ * (some clients keep a shared pipe open across sessions), the process would live
+ * forever as an orphan. These three mechanisms guarantee it always exits:
+ *
+ *   1. stdin end/close  — clean client disconnect (pipe write-end closed → EOF).
+ *   2. SIGINT/SIGTERM/SIGHUP — the client killed or signalled us.
+ *   3. idle timeout — pipe left open but no traffic; reaps abandoned orphans.
+ *      Configurable via RKY_MCP_IDLE_TIMEOUT_MS (0 disables; default 30 min).
+ */
+let shuttingDown = false;
+function shutdown(reason) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.error(`[rky-schema] shutting down (${reason})`);
+  try { closeDb(); } catch { /* best effort */ }
+  process.exit(0);
+}
+
+const IDLE_TIMEOUT_MS = Number(process.env.RKY_MCP_IDLE_TIMEOUT_MS ?? 30 * 60 * 1000);
+let idleTimer = null;
+function bumpIdle() {
+  if (!IDLE_TIMEOUT_MS) return;
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => shutdown(`idle > ${IDLE_TIMEOUT_MS}ms`), IDLE_TIMEOUT_MS);
+  // Don't let the watchdog itself keep the event loop alive.
+  idleTimer.unref?.();
+}
+
+process.stdin.on('data', bumpIdle);
+process.stdin.on('end', () => shutdown('stdin end'));
+process.stdin.on('close', () => shutdown('stdin close'));
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(signal, () => shutdown(signal));
+}
+bumpIdle();

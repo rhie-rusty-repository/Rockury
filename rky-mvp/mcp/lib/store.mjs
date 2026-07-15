@@ -30,6 +30,16 @@ export function getDb() {
   return db;
 }
 
+// Close the DB handle on shutdown so we don't leave a WAL reader lingering.
+export function closeDb() {
+  if (!db) return;
+  try {
+    db.close();
+  } finally {
+    db = null;
+  }
+}
+
 function toDiagram(row) {
   return {
     id: row.id,
