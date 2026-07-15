@@ -829,3 +829,27 @@ export interface ICollectionItem {
 
 export type THistorySource = 'query' | 'data' | 'collection';
 export type TDmlType = 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DDL';
+
+// ─── Object Browser ───
+export interface ITableStatistics {
+  rowCountEstimate: number;
+  totalSize: string;
+  dataSize: string;
+  indexSize: string;
+  deadTuples?: number;
+  lastAnalyzed?: string;
+}
+
+export interface ISqlitePragmaResult {
+  tableInfo: { cid: number; name: string; type: string; notnull: number; dflt_value: string | null; pk: number }[];
+  foreignKeyList: { id: number; seq: number; table: string; from: string; to: string; on_update: string; on_delete: string }[];
+  indexList: { seq: number; name: string; unique: number; origin: string; partial: number }[];
+}
+
+export interface ISqliteDbInfo {
+  filePath: string;
+  fileSize: string;
+  sqliteVersion: string;
+  pageSize: number;
+  pageCount: number;
+}

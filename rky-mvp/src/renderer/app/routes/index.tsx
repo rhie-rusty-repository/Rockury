@@ -15,6 +15,7 @@ import { DbDocumentingPage } from '@/pages/db-documenting';
 import { DbValidationPage } from '@/pages/db-validation';
 import { DataBrowserPage } from '@/pages/db-data';
 import { QueryBrowserPage } from '@/pages/db-query';
+import { ObjectBrowserPage } from '@/pages/db-object-browser';
 import { DbReferencePage } from '@/pages/db-reference';
 import { PlaceholderPage } from '@/pages/placeholder';
 import { NotFoundPage } from '@/pages/not-found';
@@ -50,6 +51,7 @@ export function AppRouter() {
             <Route path="diagram" element={<ConsoleDiagramPage />} />
             <Route path="data" element={<DataBrowserPage />} />
             <Route path="query" element={<QueryBrowserPage />} />
+            <Route path="object" element={<ObjectBrowserPage />} />
           </Route>
 
           {/* Reference */}

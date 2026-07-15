@@ -23,6 +23,34 @@ export function registerSchemaObjectsHandlers() {
     }
   });
 
+  // Object Browser
+  ipcMain.handle(CHANNELS.OB_TABLE_STATISTICS, async (_event, args: { connectionId: string; tableName: string }) => {
+    try {
+      const data = await schemaObjectsService.fetchTableStatistics(args.connectionId, args.tableName);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, data: null, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle(CHANNELS.OB_SQLITE_PRAGMA, async (_event, args: { connectionId: string; tableName: string }) => {
+    try {
+      const data = await schemaObjectsService.fetchSqlitePragma(args.connectionId, args.tableName);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, data: null, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle(CHANNELS.OB_SQLITE_DB_INFO, async (_event, args: { connectionId: string }) => {
+    try {
+      const data = await schemaObjectsService.fetchSqliteDbInfo(args.connectionId);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, data: null, error: (error as Error).message };
+    }
+  });
+
   ipcMain.handle(CHANNELS.QUERY_CLASSIFY_SAFETY, async (_event, args: { sql: string }) => {
     try {
       const data = querySafetyService.classify(args.sql);

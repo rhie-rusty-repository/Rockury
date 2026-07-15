@@ -17,6 +17,7 @@ import type {
   ISeedFile,
   IDriftCheckResult,
   TQuerySafetyLevel,
+  ITableStatistics, ISqlitePragmaResult, ISqliteDbInfo,
 } from '~/shared/types/db';
 
 export interface IEvents {
@@ -254,6 +255,20 @@ export interface IEvents {
   [CHANNELS.SCHEMA_OBJECT_DDL]: {
     args: { connectionId: string; objectType: TSchemaObjectType; objectName: string };
     response: { success: boolean; data: { ddl: string } };
+  };
+
+  // Object Browser
+  [CHANNELS.OB_TABLE_STATISTICS]: {
+    args: { connectionId: string; tableName: string };
+    response: { success: boolean; data: ITableStatistics };
+  };
+  [CHANNELS.OB_SQLITE_PRAGMA]: {
+    args: { connectionId: string; tableName: string };
+    response: { success: boolean; data: ISqlitePragmaResult };
+  };
+  [CHANNELS.OB_SQLITE_DB_INFO]: {
+    args: { connectionId: string };
+    response: { success: boolean; data: ISqliteDbInfo };
   };
 
   // Query Safety

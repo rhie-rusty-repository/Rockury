@@ -1,12 +1,16 @@
+import * as fs from 'node:fs';
 import { connectionService } from './connectionService';
+import { schemaService } from './schemaService';
 import { createMysqlConnection, closeMysqlConnection } from '#/infrastructure';
 import { createPgConnection, closePgConnection } from '#/infrastructure';
+import { createSqliteConnection, closeSqliteConnection } from '#/infrastructure';
 import { DIALECT_INFO } from '~/shared/types/db';
 import type {
   ISchemaObjects, ISchemaView, IRoutine, ITrigger, IDbEvent,
   ICustomType, ISequence, ISchemaIndex, TSchemaObjectType, TDbType,
   IPartition, IRole, IRlsPolicy, IGrant,
   IExtension, IForeignTable, ISchemaNamespace, ITablespace, ICollationDef,
+  ITableStatistics, ISqlitePragmaResult, ISqliteDbInfo,
 } from '~/shared/types/db';
 
 // ─── MySQL / MariaDB row types ───
@@ -97,6 +101,10 @@ interface PgFunctionRow {
   prokind: string;
   lanname: string;
   return_type: string;
+  param_names: string[] | null;
+  param_types: string | null;
+  param_modes: string[] | null;
+  func_identity: string;
 }
 
 interface PgTriggerRow {
@@ -234,6 +242,15 @@ async function fetchMysqlObjects(
 
   try {
     const result: Partial<ISchemaObjects> = {};
+
+    // Tables
+    if (shouldFetch(objectTypes, 'table')) {
+      try {
+        result.tables = await schemaService.fetchRealSchema(connectionId);
+      } catch {
+        result.tables = [];
+      }
+    }
 
     // Views
     if (shouldFetch(objectTypes, 'view')) {
@@ -574,6 +591,15 @@ async function fetchPgObjects(
   try {
     const result: Partial<ISchemaObjects> = {};
 
+    // Tables — reuse schemaService which already parses columns, keys, constraints
+    if (shouldFetch(objectTypes, 'table')) {
+      try {
+        result.tables = await schemaService.fetchRealSchema(connectionId);
+      } catch {
+        result.tables = [];
+      }
+    }
+
     // Views
     if (shouldFetch(objectTypes, 'view', 'materialized_view')) {
       const views: ISchemaView[] = [];
@@ -616,7 +642,11 @@ async function fetchPgObjects(
                 pg_get_functiondef(p.oid) AS funcdef,
                 p.prokind,
                 l.lanname,
-                pg_catalog.format_type(p.prorettype, NULL) AS return_type
+                pg_catalog.format_type(p.prorettype, NULL) AS return_type,
+                p.proargnames AS param_names,
+                pg_get_function_arguments(p.oid) AS param_types,
+                p.proargmodes AS param_modes,
+                p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' AS func_identity
          FROM pg_proc p
          JOIN pg_namespace n ON p.pronamespace = n.oid
          JOIN pg_language l ON p.prolang = l.oid
@@ -628,13 +658,42 @@ async function fetchPgObjects(
       const procedures: IRoutine[] = [];
 
       for (const r of funcResult.rows) {
+        // Parse parameters from pg_get_function_arguments
+        const parameters: IRoutine['parameters'] = [];
+        if (r.param_types) {
+          const paramParts = r.param_types.split(',').map((s) => s.trim()).filter(Boolean);
+          for (const part of paramParts) {
+            // Format: [mode] [name] type  e.g. "IN key text", "text", "OUT result text"
+            const tokens = part.split(/\s+/);
+            let mode: 'IN' | 'OUT' | 'INOUT' = 'IN';
+            let name = '';
+            let dataType = part;
+
+            if (tokens[0] === 'IN' || tokens[0] === 'OUT' || tokens[0] === 'INOUT') {
+              mode = tokens[0] as 'IN' | 'OUT' | 'INOUT';
+              if (tokens.length >= 3) {
+                name = tokens[1];
+                dataType = tokens.slice(2).join(' ');
+              } else {
+                dataType = tokens.slice(1).join(' ');
+              }
+            } else if (tokens.length >= 2) {
+              // name type (no explicit mode)
+              name = tokens[0];
+              dataType = tokens.slice(1).join(' ');
+            }
+
+            parameters.push({ name, dataType, mode });
+          }
+        }
+
         const routine: IRoutine = {
-          name: r.proname,
+          name: r.func_identity,
           type: r.prokind === 'p' ? 'procedure' : 'function',
           definition: r.funcdef ?? '',
           language: r.lanname,
           returnType: r.return_type,
-          parameters: [],
+          parameters,
         };
 
         if (routine.type === 'function' && shouldFetch(objectTypes, 'function')) {
@@ -668,8 +727,8 @@ async function fetchPgObjects(
       }));
     }
 
-    // Types (enum / composite)
-    if (shouldFetch(objectTypes, 'type')) {
+    // Types (enum / composite / domain)
+    if (shouldFetch(objectTypes, 'type', 'domain')) {
       const typeResult = await client.query<PgTypeRow>(
         `SELECT t.typname,
                 t.typtype,
@@ -680,12 +739,13 @@ async function fetchPgObjects(
          FROM pg_type t
          JOIN pg_namespace n ON t.typnamespace = n.oid
          WHERE n.nspname = 'public'
-           AND t.typtype IN ('e', 'c')`,
+           AND t.typtype IN ('e', 'c', 'd')`,
       );
-      result.types = typeResult.rows.map((r) => {
+      const types: ICustomType[] = [];
+      for (const r of typeResult.rows) {
         const customType: ICustomType = {
           name: r.typname,
-          type: r.typtype === 'e' ? 'enum' : 'composite',
+          type: r.typtype === 'e' ? 'enum' : r.typtype === 'd' ? 'domain' : 'composite',
           definition: '',
         };
 
@@ -703,8 +763,19 @@ async function fetchPgObjects(
           customType.definition = `CREATE TYPE ${r.typname} AS (${attrDefs})`;
         }
 
-        return customType;
-      });
+        if (r.typtype === 'd') {
+          customType.definition = `-- Domain type: ${r.typname}`;
+        }
+
+        types.push(customType);
+      }
+      if (shouldFetch(objectTypes, 'type')) {
+        result.types = types.filter((t) => t.type !== 'domain');
+      }
+      if (shouldFetch(objectTypes, 'domain')) {
+        // Store domains in types array — ObjectTree filters by type='domain'
+        result.types = [...(result.types ?? []), ...types.filter((t) => t.type === 'domain')];
+      }
     }
 
     // Sequences
@@ -1066,15 +1137,30 @@ async function fetchPgObjectDdl(
       }
       case 'function':
       case 'procedure': {
+        // objectName may be identity format: "funcname(arg_types)" or plain "funcname"
         const result = await client.query(
           `SELECT pg_get_functiondef(p.oid) AS def
            FROM pg_proc p
            JOIN pg_namespace n ON p.pronamespace = n.oid
-           WHERE n.nspname = 'public' AND p.proname = $1
+           WHERE n.nspname = 'public'
+             AND (p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')') = $1
            LIMIT 1`,
           [objectName],
         );
-        ddl = result.rows[0]?.def ?? '';
+        if (result.rows[0]?.def) {
+          ddl = result.rows[0].def;
+        } else {
+          // Fallback: match by plain name (for backward compat)
+          const fallback = await client.query(
+            `SELECT pg_get_functiondef(p.oid) AS def
+             FROM pg_proc p
+             JOIN pg_namespace n ON p.pronamespace = n.oid
+             WHERE n.nspname = 'public' AND p.proname = $1
+             LIMIT 1`,
+            [objectName],
+          );
+          ddl = fallback.rows[0]?.def ?? '';
+        }
         break;
       }
       case 'trigger': {
@@ -1277,6 +1363,123 @@ async function fetchPgObjectDdl(
   }
 }
 
+// ─── SQLite ───
+
+interface SqliteViewRow {
+  name: string;
+  sql: string;
+}
+
+interface SqliteTriggerRow {
+  name: string;
+  tbl_name: string;
+  sql: string;
+}
+
+async function fetchSqliteObjects(
+  connectionId: string,
+  objectTypes?: TSchemaObjectType[],
+): Promise<Partial<ISchemaObjects>> {
+  const config = connectionService.getConnectionConfig(connectionId);
+  const db = createSqliteConnection({ database: config.database });
+
+  try {
+    const result: Partial<ISchemaObjects> = {};
+
+    // Tables
+    if (shouldFetch(objectTypes, 'table')) {
+      try {
+        result.tables = await schemaService.fetchRealSchema(connectionId);
+      } catch {
+        result.tables = [];
+      }
+    }
+
+    // Views
+    if (shouldFetch(objectTypes, 'view')) {
+      const views = db.prepare(
+        `SELECT name, sql FROM sqlite_master WHERE type = 'view' ORDER BY name`,
+      ).all() as SqliteViewRow[];
+      result.views = views.map((v) => ({
+        name: v.name,
+        definition: v.sql ?? '',
+        isMaterialized: false,
+        columns: [],
+      }));
+    }
+
+    // Triggers
+    if (shouldFetch(objectTypes, 'trigger')) {
+      const triggers = db.prepare(
+        `SELECT name, tbl_name, sql FROM sqlite_master WHERE type = 'trigger' ORDER BY name`,
+      ).all() as SqliteTriggerRow[];
+      result.triggers = triggers.map((t) => {
+        // Parse timing and event from SQL
+        const upper = (t.sql ?? '').toUpperCase();
+        let timing: ITrigger['timing'] = 'BEFORE';
+        let event: ITrigger['event'] = 'INSERT';
+        if (upper.includes('AFTER')) timing = 'AFTER';
+        if (upper.includes('INSTEAD OF')) timing = 'INSTEAD OF';
+        if (upper.includes('UPDATE')) event = 'UPDATE';
+        if (upper.includes('DELETE')) event = 'DELETE';
+
+        return {
+          name: t.name,
+          tableName: t.tbl_name,
+          timing,
+          event,
+          definition: t.sql ?? '',
+        };
+      });
+    }
+
+    // Indexes (for table sub-categories)
+    if (shouldFetch(objectTypes, 'index')) {
+      const indexes = db.prepare(
+        `SELECT name, tbl_name, sql FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL ORDER BY name`,
+      ).all() as { name: string; tbl_name: string; sql: string }[];
+      result.indexes = indexes.map((idx) => {
+        const isUnique = /CREATE\s+UNIQUE/i.test(idx.sql ?? '');
+        const colMatch = /\(([^)]+)\)\s*$/.exec(idx.sql ?? '');
+        const columns = colMatch
+          ? colMatch[1].split(',').map((c) => c.trim().replace(/"/g, ''))
+          : [];
+
+        return {
+          name: idx.name,
+          tableName: idx.tbl_name,
+          columns,
+          isUnique,
+          definition: idx.sql ?? '',
+        };
+      });
+    }
+
+    return result;
+  } finally {
+    closeSqliteConnection(db);
+  }
+}
+
+function fetchSqliteObjectDdl(
+  connectionId: string,
+  objectType: TSchemaObjectType,
+  objectName: string,
+): string {
+  const config = connectionService.getConnectionConfig(connectionId);
+  const db = createSqliteConnection({ database: config.database });
+
+  try {
+    const row = db.prepare(
+      `SELECT sql FROM sqlite_master WHERE name = ?`,
+    ).get(objectName) as { sql: string } | undefined;
+
+    return row?.sql ?? '';
+  } finally {
+    closeSqliteConnection(db);
+  }
+}
+
 // ─── Exported Service ───
 
 export const schemaObjectsService = {
@@ -1293,6 +1496,9 @@ export const schemaObjectsService = {
     if (dbType === 'postgresql') {
       return fetchPgObjects(connectionId, types);
     }
+    if (dbType === 'sqlite') {
+      return fetchSqliteObjects(connectionId, types);
+    }
     throw new Error(`Unsupported database type: ${dbType}`);
   },
 
@@ -1306,6 +1512,121 @@ export const schemaObjectsService = {
     if (dbType === 'postgresql') {
       return fetchPgObjectDdl(connectionId, objectType, objectName);
     }
+    if (dbType === 'sqlite') {
+      return fetchSqliteObjectDdl(connectionId, objectType, objectName);
+    }
     throw new Error(`Unsupported database type: ${dbType}`);
+  },
+
+  async fetchTableStatistics(connectionId: string, tableName: string): Promise<ITableStatistics> {
+    const config = connectionService.getConnectionConfig(connectionId);
+    const dbType: TDbType = config.dbType;
+
+    if (dbType === 'postgresql') {
+      const client = await createPgConnection(config);
+      try {
+        const result = await client.query<{
+          row_estimate: string;
+          total_size: string;
+          data_size: string;
+          index_size: string;
+          dead_tuples: string;
+          last_analyzed: string | null;
+        }>(
+          `SELECT
+            c.reltuples::bigint AS row_estimate,
+            pg_size_pretty(pg_total_relation_size(c.oid)) AS total_size,
+            pg_size_pretty(pg_relation_size(c.oid)) AS data_size,
+            pg_size_pretty(pg_indexes_size(c.oid)) AS index_size,
+            COALESCE(s.n_dead_tup, 0)::bigint AS dead_tuples,
+            s.last_analyze::text AS last_analyzed
+          FROM pg_class c
+          LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
+          WHERE c.relname = $1 AND c.relkind IN ('r', 'm')
+          LIMIT 1`,
+          [tableName],
+        );
+        const row = result.rows[0];
+        if (!row) throw new Error(`Table "${tableName}" not found`);
+        return {
+          rowCountEstimate: parseInt(row.row_estimate, 10),
+          totalSize: row.total_size,
+          dataSize: row.data_size,
+          indexSize: row.index_size,
+          deadTuples: parseInt(row.dead_tuples, 10),
+          lastAnalyzed: row.last_analyzed ?? undefined,
+        };
+      } finally {
+        await closePgConnection(client);
+      }
+    }
+
+    if (dbType === 'mysql' || dbType === 'mariadb') {
+      const conn = await createMysqlConnection(config);
+      try {
+        const [rows] = await conn.query<any[]>(
+          `SELECT TABLE_ROWS AS row_estimate,
+                  CONCAT(ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2), ' MB') AS total_size,
+                  CONCAT(ROUND(DATA_LENGTH / 1024 / 1024, 2), ' MB') AS data_size,
+                  CONCAT(ROUND(INDEX_LENGTH / 1024 / 1024, 2), ' MB') AS index_size
+           FROM information_schema.TABLES
+           WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+          [config.database, tableName],
+        );
+        const row = (rows as any[])[0];
+        if (!row) throw new Error(`Table "${tableName}" not found`);
+        return {
+          rowCountEstimate: row.row_estimate ?? 0,
+          totalSize: row.total_size ?? '0 MB',
+          dataSize: row.data_size ?? '0 MB',
+          indexSize: row.index_size ?? '0 MB',
+        };
+      } finally {
+        await closeMysqlConnection(conn);
+      }
+    }
+
+    throw new Error(`Statistics not supported for ${dbType}`);
+  },
+
+  async fetchSqlitePragma(connectionId: string, tableName: string): Promise<ISqlitePragmaResult> {
+    const config = connectionService.getConnectionConfig(connectionId);
+    if (config.dbType !== 'sqlite') throw new Error('PRAGMA only available for SQLite');
+
+    const db = createSqliteConnection({ database: config.database });
+    try {
+      const tableInfo = db.prepare(`PRAGMA table_info("${tableName}")`).all() as ISqlitePragmaResult['tableInfo'];
+      const foreignKeyList = db.prepare(`PRAGMA foreign_key_list("${tableName}")`).all() as ISqlitePragmaResult['foreignKeyList'];
+      const indexList = db.prepare(`PRAGMA index_list("${tableName}")`).all() as ISqlitePragmaResult['indexList'];
+      return { tableInfo, foreignKeyList, indexList };
+    } finally {
+      closeSqliteConnection(db);
+    }
+  },
+
+  async fetchSqliteDbInfo(connectionId: string): Promise<ISqliteDbInfo> {
+    const config = connectionService.getConnectionConfig(connectionId);
+    if (config.dbType !== 'sqlite') throw new Error('DB Info only available for SQLite');
+
+    const filePath = config.database;
+    const stats = fs.statSync(filePath);
+    const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(1);
+
+    const db = createSqliteConnection({ database: filePath });
+    try {
+      const version = (db.prepare('SELECT sqlite_version() AS v').get() as { v: string }).v;
+      const pageSize = (db.prepare('PRAGMA page_size').get() as { page_size: number }).page_size;
+      const pageCount = (db.prepare('PRAGMA page_count').get() as { page_count: number }).page_count;
+
+      return {
+        filePath,
+        fileSize: `${fileSizeMB} MB`,
+        sqliteVersion: version,
+        pageSize,
+        pageCount,
+      };
+    } finally {
+      closeSqliteConnection(db);
+    }
   },
 };

@@ -19,6 +19,7 @@ export const ROUTES = {
       DIAGRAM: '/db/console/diagram',
       DATA: '/db/console/data',
       QUERY: '/db/console/query',
+      OBJECT: '/db/console/object',
     },
     REFERENCE: '/db/reference',
   },

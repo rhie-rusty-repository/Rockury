@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rockury Console — UI/UX Mockup</title>
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --bg-surface: #252536;
+    --bg-hover: #2e2e42;
+    --bg-active: #363650;
+    --bg-panel: #1b1b2d;
+    --border: #333350;
+    --text: #cdd6f4;
+    --text-muted: #6c7086;
+    --text-dim: #585b70;
+    --accent: #89b4fa;
+    --accent-dim: rgba(137,180,250,0.15);
+    --green: #a6e3a1;
+    --yellow: #f9e2af;
+    --red: #f38ba8;
+    --peach: #fab387;
+    --mauve: #cba6f7;
+    --teal: #94e2d5;
+    --radius: 6px;
+    --nav-w: 42px;
+    --side-w: 240px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'SF Mono','Menlo','Consolas',monospace; font-size:12px; color:var(--text); background:var(--bg); overflow:hidden; height:100vh; }
+
+  /* ─── Top Tabs ─── */
+  .top-bar { display:flex; align-items:center; height:36px; background:var(--bg-surface); border-bottom:1px solid var(--border); padding:0 12px; gap:2px; }
+  .top-tab { padding:6px 14px; border-radius:var(--radius) var(--radius) 0 0; cursor:pointer; color:var(--text-muted); font-size:11px; user-select:none; }
+  .top-tab:hover { color:var(--text); background:var(--bg-hover); }
+  .top-tab.active { color:var(--accent); background:var(--bg); border:1px solid var(--border); border-bottom:1px solid var(--bg); }
+  .top-tab.disabled { opacity:.35; cursor:not-allowed; }
+  .conn-badge { margin-left:auto; font-size:10px; color:var(--green); display:flex; align-items:center; gap:4px; }
+  .conn-badge .dot { width:6px; height:6px; border-radius:50%; background:var(--green); }
+
+  /* ─── Main Layout ─── */
+  .main-layout { display:flex; height:calc(100vh - 36px); }
+
+  /* ─── Nav Bar ─── */
+  .nav-bar { width:var(--nav-w); background:var(--bg-surface); border-right:1px solid var(--border); display:flex; flex-direction:column; align-items:center; padding:6px 0; gap:2px; flex-shrink:0; }
+  .nav-icon { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:var(--radius); cursor:pointer; color:var(--text-muted); position:relative; font-size:15px; }
+  .nav-icon:hover { background:var(--bg-hover); color:var(--text); }
+  .nav-icon.active { background:var(--accent-dim); color:var(--accent); }
+  .nav-icon.disabled { opacity:.3; cursor:not-allowed; }
+  .nav-icon.disabled:hover { background:transparent; color:var(--text-muted); }
+  .nav-divider { width:24px; height:1px; background:var(--border); margin:6px 0; }
+  .nav-spacer { flex:1; }
+  .nav-icon .tooltip { position:absolute; left:42px; background:#1a1a2e; border:1px solid var(--border); color:var(--text); padding:4px 8px; border-radius:4px; font-size:10px; white-space:nowrap; display:none; z-index:99; }
+  .nav-icon:hover .tooltip { display:block; }
+
+  /* ─── Side Panel ─── */
+  .side-panel { width:var(--side-w); background:var(--bg-panel); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; transition:width .15s; }
+  .side-panel.collapsed { width:0; border:none; }
+  .side-header { padding:10px 12px 8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); }
+  .side-search { margin:0 8px 8px; padding:5px 8px; background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:11px; outline:none; font-family:inherit; }
+  .side-search:focus { border-color:var(--accent); }
+  .side-search::placeholder { color:var(--text-dim); }
+
+  /* Tree */
+  .tree { flex:1; overflow-y:auto; padding:0 4px; }
+  .tree-group { margin-bottom:2px; }
+  .tree-group-header { display:flex; align-items:center; padding:4px 8px; border-radius:4px; cursor:pointer; gap:6px; color:var(--text); font-size:11px; user-select:none; }
+  .tree-group-header:hover { background:var(--bg-hover); }
+  .tree-group-header .arrow { font-size:8px; color:var(--text-muted); width:10px; transition:transform .15s; }
+  .tree-group-header .arrow.open { transform:rotate(90deg); }
+  .tree-group-header .icon { font-size:13px; }
+  .tree-group-header .count { margin-left:auto; color:var(--text-dim); font-size:10px; }
+  .tree-items { padding-left:18px; display:none; }
+  .tree-items.open { display:block; }
+  .tree-item { display:flex; align-items:center; padding:3px 8px; border-radius:4px; cursor:pointer; gap:5px; font-size:11px; color:var(--text-muted); }
+  .tree-item:hover { background:var(--bg-hover); color:var(--text); }
+  .tree-item.active { background:var(--accent-dim); color:var(--accent); }
+  .tree-item .pk { color:var(--yellow); font-size:9px; }
+  .tree-item .fk { color:var(--mauve); font-size:10px; }
+  .tree-item .type { margin-left:auto; color:var(--text-dim); font-size:10px; }
+  .tree-item .lock { color:var(--text-dim); font-size:10px; }
+
+  .side-footer { padding:8px; border-top:1px solid var(--border); }
+  .side-footer button { width:100%; padding:4px; background:var(--bg-surface); border:1px solid var(--border); color:var(--text-muted); border-radius:var(--radius); cursor:pointer; font-size:10px; font-family:inherit; }
+  .side-footer button:hover { background:var(--bg-hover); color:var(--text); }
+
+  /* ─── Content Area ─── */
+  .content-area { flex:1; display:flex; flex-direction:column; min-width:0; }
+
+  /* Tab Bar */
+  .tab-bar { display:flex; align-items:center; height:32px; background:var(--bg-surface); border-bottom:1px solid var(--border); padding:0 8px; gap:2px; overflow-x:auto; flex-shrink:0; }
+  .tab-bar::-webkit-scrollbar { height:0; }
+  .content-tab { display:flex; align-items:center; gap:5px; padding:4px 10px; border-radius:var(--radius) var(--radius) 0 0; cursor:pointer; color:var(--text-muted); font-size:11px; white-space:nowrap; user-select:none; border:1px solid transparent; border-bottom:none; }
+  .content-tab:hover { color:var(--text); background:var(--bg-hover); }
+  .content-tab.active { color:var(--text); background:var(--bg); border-color:var(--border); }
+  .content-tab .close { font-size:10px; margin-left:4px; opacity:.4; }
+  .content-tab .close:hover { opacity:1; }
+  .content-tab .dot { width:5px; height:5px; border-radius:50%; background:var(--peach); }
+  .tab-bar .actions { margin-left:auto; display:flex; gap:4px; }
+  .tab-bar .actions button { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:10px; padding:2px 6px; border-radius:3px; font-family:inherit; }
+  .tab-bar .actions button:hover { background:var(--bg-hover); color:var(--text); }
+
+  /* Main View */
+  .main-view { flex:1; overflow-y:auto; padding:16px 20px; background:var(--bg); }
+
+  /* Table Detail */
+  .detail-header { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
+  .detail-header .title { font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px; }
+  .detail-header .title .icon { font-size:16px; }
+  .detail-actions { margin-left:auto; display:flex; gap:6px; }
+  .btn { padding:4px 10px; border-radius:var(--radius); font-size:10px; font-family:inherit; cursor:pointer; border:1px solid var(--border); }
+  .btn-ghost { background:transparent; color:var(--text-muted); }
+  .btn-ghost:hover { background:var(--bg-hover); color:var(--text); }
+  .btn-danger { background:transparent; color:var(--red); border-color:rgba(243,139,168,.3); }
+  .btn-danger:hover { background:rgba(243,139,168,.1); }
+  .btn-primary { background:var(--accent); color:var(--bg); border-color:var(--accent); }
+  .btn-primary:hover { opacity:.9; }
+
+  .sub-tabs { display:flex; gap:2px; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:0; }
+  .sub-tab { padding:6px 12px; font-size:11px; color:var(--text-muted); cursor:pointer; border-bottom:2px solid transparent; user-select:none; }
+  .sub-tab:hover { color:var(--text); }
+  .sub-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+  /* Data Grid */
+  .grid { width:100%; border-collapse:collapse; font-size:11px; }
+  .grid th { text-align:left; padding:6px 10px; background:var(--bg-surface); border-bottom:1px solid var(--border); color:var(--text-muted); font-weight:500; font-size:10px; text-transform:uppercase; letter-spacing:.3px; position:sticky; top:0; }
+  .grid td { padding:5px 10px; border-bottom:1px solid rgba(51,51,80,.4); color:var(--text); }
+  .grid tr:hover td { background:var(--bg-hover); }
+  .grid .pk-icon { color:var(--yellow); }
+  .grid .fk-icon { color:var(--mauve); }
+  .grid .null { color:var(--text-dim); font-style:italic; }
+  .grid .badge { padding:1px 6px; border-radius:3px; font-size:9px; font-weight:500; }
+  .badge-pk { background:rgba(249,226,175,.15); color:var(--yellow); }
+  .badge-fk { background:rgba(203,166,247,.15); color:var(--mauve); }
+  .badge-uk { background:rgba(148,226,213,.15); color:var(--teal); }
+
+  /* ─── Bottom Panel ─── */
+  .bottom-panel { height:180px; border-top:1px solid var(--border); background:var(--bg-surface); display:flex; flex-direction:column; flex-shrink:0; }
+  .bottom-tabs { display:flex; align-items:center; height:28px; padding:0 8px; gap:2px; border-bottom:1px solid var(--border); }
+  .bottom-tab { padding:4px 10px; font-size:10px; color:var(--text-muted); cursor:pointer; border-bottom:2px solid transparent; user-select:none; }
+  .bottom-tab:hover { color:var(--text); }
+  .bottom-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .bottom-actions { margin-left:auto; display:flex; gap:4px; }
+  .bottom-actions button { background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:10px; font-family:inherit; padding:2px 6px; }
+  .bottom-actions button:hover { color:var(--text); }
+  .bottom-content { flex:1; overflow-y:auto; padding:8px 12px; font-size:11px; }
+  .msg { padding:2px 0; display:flex; gap:8px; }
+  .msg .time { color:var(--text-dim); }
+  .msg .ok { color:var(--green); }
+  .msg .err { color:var(--red); }
+  .msg .warn { color:var(--yellow); }
+  .msg .detail { color:var(--text-muted); }
+
+  /* ─── DBA / Monitor Single View ─── */
+  .single-view { flex:1; display:flex; overflow:hidden; }
+  .single-view .sv-content { flex:1; padding:16px 20px; overflow-y:auto; }
+  .sv-title { font-size:13px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .sv-title .badge-count { background:var(--accent-dim); color:var(--accent); padding:1px 8px; border-radius:10px; font-size:10px; }
+
+  /* Session Row */
+  .session-row { display:flex; align-items:center; padding:6px 10px; border-radius:var(--radius); gap:10px; font-size:11px; cursor:pointer; }
+  .session-row:hover { background:var(--bg-hover); }
+  .session-row.selected { background:var(--accent-dim); }
+  .session-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .session-dot.active { background:var(--green); }
+  .session-dot.idle-tx { background:var(--yellow); }
+  .session-dot.idle { background:var(--text-dim); }
+  .session-pid { color:var(--text-dim); width:40px; }
+  .session-user { width:70px; }
+  .session-db { width:50px; color:var(--text-muted); }
+  .session-state { flex:1; color:var(--text-muted); }
+  .session-dur { width:50px; text-align:right; color:var(--text-muted); }
+  .session-kill { opacity:0; color:var(--red); cursor:pointer; font-size:10px; padding:2px 6px; border-radius:3px; }
+  .session-row:hover .session-kill { opacity:.6; }
+  .session-kill:hover { opacity:1!important; background:rgba(243,139,168,.1); }
+
+  /* DB Info (SQLite) */
+  .db-info { padding:8px 12px; border-top:1px solid var(--border); font-size:10px; color:var(--text-dim); }
+  .db-info-row { display:flex; gap:6px; padding:2px 0; }
+  .db-info-row .label { width:80px; }
+  .db-info-row .val { color:var(--text-muted); }
+
+  /* ─── Data Ops ─── */
+  .wizard-card { background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; cursor:pointer; }
+  .wizard-card:hover { border-color:var(--accent); background:var(--bg-hover); }
+  .wizard-card .wc-title { font-size:12px; font-weight:500; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+  .wizard-card .wc-desc { font-size:10px; color:var(--text-muted); }
+
+  /* ─── Vendor Selector ─── */
+  .vendor-bar { display:flex; gap:6px; padding:8px 0; margin-bottom:0; position:fixed; bottom:8px; right:12px; z-index:50; }
+  .vendor-btn { padding:4px 10px; border-radius:var(--radius); font-size:10px; font-family:inherit; cursor:pointer; border:1px solid var(--border); background:var(--bg-surface); color:var(--text-muted); }
+  .vendor-btn:hover { border-color:var(--text-muted); color:var(--text); }
+  .vendor-btn.active { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+
+  /* ─── Empty / Error States ─── */
+  .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-dim); gap:8px; }
+  .empty-state .icon { font-size:28px; opacity:.5; }
+  .empty-state .msg-text { font-size:12px; }
+  .empty-state .sub-text { font-size:10px; }
+
+  .error-banner { display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(243,139,168,.08); border:1px solid rgba(243,139,168,.2); border-radius:var(--radius); margin-bottom:12px; font-size:11px; color:var(--red); }
+  .warning-banner { display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(249,226,175,.08); border:1px solid rgba(249,226,175,.2); border-radius:var(--radius); margin-bottom:12px; font-size:11px; color:var(--yellow); }
+  .info-banner { display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(137,180,250,.08); border:1px solid rgba(137,180,250,.2); border-radius:var(--radius); margin-bottom:12px; font-size:11px; color:var(--accent); }
+
+  .stale-banner { display:flex; align-items:center; gap:8px; padding:6px 12px; background:rgba(249,226,175,.06); border-bottom:1px solid rgba(249,226,175,.15); font-size:10px; color:var(--yellow); }
+  .stale-banner .btn { margin-left:auto; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:var(--text-dim); }
+
+  /* SQL Preview */
+  .sql-preview { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:8px 12px; font-size:11px; color:var(--teal); margin:8px 0; font-family:inherit; white-space:pre; overflow-x:auto; }
+  .sql-actions { display:flex; gap:6px; }
+
+  /* Confirm Dialog */
+  .dialog-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:100; }
+  .dialog-overlay.show { display:flex; }
+  .dialog { background:var(--bg-surface); border:1px solid var(--border); border-radius:8px; padding:20px; width:420px; max-width:90vw; }
+  .dialog-title { font-size:13px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+  .dialog-body { font-size:11px; color:var(--text-muted); margin-bottom:16px; line-height:1.6; }
+  .dialog-confirm-input { width:100%; padding:6px 10px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:inherit; font-size:11px; margin-top:8px; outline:none; }
+  .dialog-confirm-input:focus { border-color:var(--accent); }
+  .dialog-footer { display:flex; justify-content:flex-end; gap:8px; }
+
+  /* Auto refresh indicator */
+  .auto-refresh { display:flex; align-items:center; gap:6px; font-size:10px; color:var(--text-dim); margin-left:auto; }
+  .auto-refresh .pulse { width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <div class="top-tab disabled">Connection</div>
+  <div class="top-tab disabled">Diagram</div>
+  <div class="top-tab disabled">Data</div>
+  <div class="top-tab disabled">Query</div>
+  <div class="top-tab active">Console</div>
+  <div class="conn-badge"><span class="dot"></span> <span id="connLabel">prod-db (PostgreSQL 15.4)</span></div>
+</div>
+
+<!-- Main Layout -->
+<div class="main-layout">
+
+  <!-- Nav Bar -->
+  <div class="nav-bar">
+    <div class="nav-icon active" data-nav="objects" id="navObjects" onclick="switchNav('objects')">
+      📦<span class="tooltip">Object Browser</span>
+    </div>
+    <div class="nav-icon" data-nav="dba" id="navDba" onclick="switchNav('dba')">
+      👤<span class="tooltip">DBA</span>
+    </div>
+    <div class="nav-icon" data-nav="monitor" id="navMonitor" onclick="switchNav('monitor')">
+      📊<span class="tooltip">Monitor</span>
+    </div>
+    <div class="nav-icon" data-nav="dataops" id="navDataops" onclick="switchNav('dataops')">
+      📥<span class="tooltip">Data Ops</span>
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-spacer"></div>
+    <div class="nav-icon" onclick="alert('Console Settings')">
+      ⚙<span class="tooltip">Settings</span>
+    </div>
+  </div>
+
+  <!-- Side Panel -->
+  <div class="side-panel" id="sidePanel">
+
+    <!-- Object Browser Panel -->
+    <div id="panelObjects">
+      <div class="side-header">Objects</div>
+      <input class="side-search" placeholder="🔍 Search objects..." />
+      <div id="schemaSelector" style="padding:0 8px 6px;">
+        <select style="width:100%;padding:3px 6px;background:var(--bg-surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:10px;font-family:inherit;">
+          <option>📋 Schema: public</option>
+          <option>📋 Schema: auth</option>
+          <option>📋 Schema: extensions</option>
+        </select>
+      </div>
+      <div class="tree" id="objectTree"></div>
+      <div class="db-info" id="sqliteInfo" style="display:none;">
+        <div class="db-info-row"><span class="label">📄 File:</span><span class="val">~/data/app.db</span></div>
+        <div class="db-info-row"><span class="label">📏 Size:</span><span class="val">24.3 MB</span></div>
+        <div class="db-info-row"><span class="label">🔖 Version:</span><span class="val">SQLite 3.45.0</span></div>
+        <div class="db-info-row"><span class="label">📐 Page Size:</span><span class="val">4096</span></div>
+        <div class="db-info-row"><span class="label">🔄 Journal:</span><span class="val">WAL</span></div>
+      </div>
+      <div class="side-footer"><button onclick="alert('Refresh schema')">↻ Refresh</button></div>
+    </div>
+
+    <!-- DBA Panel -->
+    <div id="panelDba" style="display:none;">
+      <div class="side-header">DBA</div>
+      <input class="side-search" placeholder="🔍 Search..." />
+      <div class="tree">
+        <div class="tree-group">
+          <div class="tree-group-header" onclick="toggleGroup(this)"><span class="arrow">▸</span><span class="icon">👤</span> Users <span class="count">12</span></div>
+          <div class="tree-items">
+            <div class="tree-item" onclick="showDbaView('users')">root</div>
+            <div class="tree-item" onclick="showDbaView('users')">app_user</div>
+            <div class="tree-item" onclick="showDbaView('users')">readonly</div>
+            <div class="tree-item" onclick="showDbaView('users')">backup_user</div>
+          </div>
+        </div>
+        <div class="tree-group">
+          <div class="tree-group-header" onclick="toggleGroup(this)"><span class="arrow">▸</span><span class="icon">🎭</span> Roles <span class="count">5</span></div>
+          <div class="tree-items">
+            <div class="tree-item">admin</div>
+            <div class="tree-item">editor</div>
+            <div class="tree-item">viewer</div>
+          </div>
+        </div>
+        <div class="tree-group">
+          <div class="tree-group-header" onclick="showDbaView('privileges')"><span class="arrow">▸</span><span class="icon">🛡</span> Privileges</div>
+        </div>
+        <div class="tree-group">
+          <div class="tree-group-header" onclick="toggleGroup(this)"><span class="arrow">▸</span><span class="icon">🗄</span> <span id="dbSchemaLabel">Databases/Schemas</span> <span class="count">3</span></div>
+          <div class="tree-items">
+            <div class="tree-item" id="dbItem1">mydb</div>
+            <div class="tree-item" id="dbItem2">testdb</div>
+            <div class="tree-item" id="dbItem3">analytics</div>
+          </div>
+        </div>
+        <div class="tree-group">
+          <div class="tree-group-header" onclick="showDbaView('variables')"><span class="arrow">▸</span><span class="icon">⚙</span> Variables</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monitor Panel -->
+    <div id="panelMonitor" style="display:none;">
+      <div class="side-header">Monitor</div>
+      <div class="tree">
+        <div style="padding:4px 8px;font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-top:4px;">Live</div>
+        <div class="tree-group"><div class="tree-group-header" onclick="showMonitorView('sessions')"><span class="icon">🖥</span> Active Sessions</div></div>
+        <div class="tree-group"><div class="tree-group-header" onclick="showMonitorView('locks')"><span class="icon">🔒</span> Locks</div></div>
+        <div class="tree-group"><div class="tree-group-header" onclick="showMonitorView('replication')"><span class="icon">📡</span> Replication</div></div>
+        <div style="padding:4px 8px;font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-top:8px;">Statistics</div>
+        <div class="tree-group"><div class="tree-group-header" onclick="showMonitorView('tablestats')"><span class="icon">📊</span> Table Statistics</div></div>
+        <div class="tree-group"><div class="tree-group-header" onclick="showMonitorView('indexstats')"><span class="icon">📈</span> Index Statistics</div></div>
+        <div class="tree-group"><div class="tree-group-header" onclick="showMonitorView('topsql')"><span class="icon">🏆</span> Top SQL</div></div>
+        <div style="padding:4px 8px;font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-top:8px;">Server</div>
+        <div class="tree-group"><div class="tree-group-header" onclick="showMonitorView('serverstatus')"><span class="icon">🖧</span> Server Status</div></div>
+      </div>
+    </div>
+
+    <!-- Data Ops Panel -->
+    <div id="panelDataops" style="display:none;">
+      <div class="side-header">Data Ops</div>
+      <div class="tree">
+        <div class="tree-group"><div class="tree-group-header" onclick="showDataOpsView('export')"><span class="icon">📤</span> Export Data</div></div>
+        <div class="tree-group"><div class="tree-group-header" onclick="showDataOpsView('import')"><span class="icon">📥</span> Import Data</div></div>
+        <div class="tree-group"><div class="tree-group-header" onclick="showDataOpsView('dump')"><span class="icon">💾</span> SQL Dump</div></div>
+        <div class="tree-group"><div class="tree-group-header" onclick="showDataOpsView('restore')"><span class="icon">📂</span> Restore</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Content Area -->
+  <div class="content-area">
+
+    <!-- Tab Bar (Objects only) -->
+    <div class="tab-bar" id="contentTabBar">
+      <div class="content-tab active" onclick="switchContentTab(this, 'tabUsers')">
+        <span>🗂</span> users <span class="close">✕</span>
+      </div>
+      <div class="content-tab" onclick="switchContentTab(this, 'tabGetUser')">
+        <span>⚡</span> get_user() <span class="dot"></span> <span class="close">✕</span>
+      </div>
+      <div class="content-tab" onclick="switchContentTab(this, 'tabTrigger')">
+        <span>⏰</span> trg_audit <span class="close">✕</span>
+      </div>
+      <div class="actions">
+        <button>⌘K</button>
+        <button>⚙</button>
+      </div>
+    </div>
+
+    <!-- Main View -->
+    <div class="main-view" id="mainView">
+
+      <!-- Table Detail: users -->
+      <div id="tabUsers">
+        <div class="detail-header">
+          <div class="title"><span class="icon">🗂</span> users</div>
+          <div class="detail-actions">
+            <button class="btn btn-ghost" onclick="showSqlPreview()">✏️ ALTER</button>
+            <button class="btn btn-ghost">📜 DDL</button>
+            <button class="btn btn-danger" onclick="showDropDialog()">🗑 DROP</button>
+          </div>
+        </div>
+        <div class="sub-tabs">
+          <div class="sub-tab active">Columns</div>
+          <div class="sub-tab">Constraints</div>
+          <div class="sub-tab">Indexes</div>
+          <div class="sub-tab">Triggers</div>
+          <div class="sub-tab">Statistics</div>
+          <div class="sub-tab">DDL</div>
+        </div>
+        <table class="grid">
+          <thead>
+            <tr><th>#</th><th>Name</th><th>Type</th><th>Nullable</th><th>Default</th><th>Key</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>id</td><td>int4</td><td>NO</td><td>nextval('users_id_seq')</td><td><span class="badge badge-pk">PK</span></td></tr>
+            <tr><td>2</td><td>email</td><td>varchar(255)</td><td>NO</td><td class="null">—</td><td><span class="badge badge-uk">UK</span></td></tr>
+            <tr><td>3</td><td>name</td><td>varchar(100)</td><td>YES</td><td class="null">NULL</td><td></td></tr>
+            <tr><td>4</td><td>role_id</td><td>int4</td><td>NO</td><td class="null">—</td><td><span class="badge badge-fk">FK → roles(id)</span></td></tr>
+            <tr><td>5</td><td>status</td><td>varchar(20)</td><td>NO</td><td>'active'</td><td></td></tr>
+            <tr><td>6</td><td>created_at</td><td>timestamptz</td><td>NO</td><td>now()</td><td></td></tr>
+            <tr><td>7</td><td>updated_at</td><td>timestamptz</td><td>YES</td><td class="null">NULL</td><td></td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:10px;">
+          <button class="btn btn-ghost">+ Add Column</button>
+        </div>
+      </div>
+
+      <!-- Function Editor -->
+      <div id="tabGetUser" style="display:none;">
+        <div class="detail-header">
+          <div class="title"><span class="icon">⚡</span> get_user_by_email</div>
+          <div class="detail-actions">
+            <button class="btn btn-primary">💾 Save</button>
+            <button class="btn btn-ghost">▶ Test</button>
+            <button class="btn btn-ghost">📜 DDL</button>
+            <button class="btn btn-danger">🗑</button>
+          </div>
+        </div>
+        <div class="sub-tabs">
+          <div class="sub-tab active">Definition</div>
+          <div class="sub-tab">Parameters</div>
+          <div class="sub-tab">Options</div>
+          <div class="sub-tab">DDL</div>
+        </div>
+        <div style="margin-bottom:12px;display:flex;gap:16px;font-size:11px;">
+          <span>Language: <strong style="color:var(--accent)">plpgsql</strong></span>
+          <span>Returns: <strong style="color:var(--accent)">TABLE</strong></span>
+        </div>
+        <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:11px;line-height:1.8;">
+          <div><span style="color:var(--text-dim)">1</span> <span style="color:var(--mauve)">DECLARE</span></div>
+          <div><span style="color:var(--text-dim)">2</span>   v_user <span style="color:var(--teal)">RECORD</span>;</div>
+          <div><span style="color:var(--text-dim)">3</span> <span style="color:var(--mauve)">BEGIN</span></div>
+          <div><span style="color:var(--text-dim)">4</span>   <span style="color:var(--mauve)">RETURN QUERY</span></div>
+          <div><span style="color:var(--text-dim)">5</span>   <span style="color:var(--accent)">SELECT</span> u.id, u.email, u.name</div>
+          <div><span style="color:var(--text-dim)">6</span>   <span style="color:var(--accent)">FROM</span> users u</div>
+          <div><span style="color:var(--text-dim)">7</span>   <span style="color:var(--accent)">WHERE</span> u.email = p_email;</div>
+          <div><span style="color:var(--text-dim)">8</span> <span style="color:var(--mauve)">END</span>;</div>
+        </div>
+      </div>
+
+      <!-- Trigger Editor -->
+      <div id="tabTrigger" style="display:none;">
+        <div class="detail-header">
+          <div class="title"><span class="icon">⏰</span> trg_audit_users</div>
+          <div class="detail-actions">
+            <button class="btn btn-primary">💾 Save</button>
+            <button class="btn btn-ghost">🔄 Toggle</button>
+            <button class="btn btn-danger">🗑 Drop</button>
+          </div>
+        </div>
+        <div class="sub-tabs">
+          <div class="sub-tab active">Trigger Config</div>
+          <div class="sub-tab">Function Body</div>
+          <div class="sub-tab">DDL</div>
+        </div>
+        <div style="font-size:11px;line-height:2.2;">
+          <div>Table: <strong style="color:var(--accent)">users</strong></div>
+          <div>Timing: <span style="color:var(--green)">● BEFORE</span> &nbsp; ○ AFTER &nbsp; ○ INSTEAD OF</div>
+          <div>Events: ☑ INSERT &nbsp; ☑ UPDATE &nbsp; ☐ DELETE &nbsp; ☐ TRUNCATE</div>
+          <div>Level: <span style="color:var(--green)">● FOR EACH ROW</span> &nbsp; ○ FOR EACH STATEMENT</div>
+          <div style="margin-top:8px;">Status: <span style="color:var(--green)">● Enabled</span> &nbsp; ○ Disabled</div>
+          <div>Function: <strong style="color:var(--accent)">trg_audit_users_fn</strong> <span style="color:var(--text-muted);cursor:pointer;">[Edit →]</span></div>
+        </div>
+      </div>
+
+      <!-- DBA Views -->
+      <div id="dbaView" style="display:none;"></div>
+
+      <!-- Monitor Views -->
+      <div id="monitorView" style="display:none;"></div>
+
+      <!-- Data Ops Views -->
+      <div id="dataOpsView" style="display:none;"></div>
+
+    </div>
+
+    <!-- Bottom Output Panel -->
+    <div class="bottom-panel">
+      <div class="bottom-tabs">
+        <div class="bottom-tab active" onclick="switchBottomTab(this,'btResults')">Results</div>
+        <div class="bottom-tab" onclick="switchBottomTab(this,'btMessages')">Messages</div>
+        <div class="bottom-tab" onclick="switchBottomTab(this,'btSqlPreview')">SQL Preview</div>
+        <div class="bottom-actions">
+          <button>Clear</button>
+          <button>⌃ Max</button>
+        </div>
+      </div>
+      <div class="bottom-content" id="btResults">
+        <div style="color:var(--text-dim);text-align:center;padding:20px;">No results to display</div>
+      </div>
+      <div class="bottom-content" id="btMessages" style="display:none;">
+        <div class="msg"><span class="time">[10:30:15]</span><span class="ok">✅</span><span class="detail">Query executed successfully (45ms, 12 rows)</span></div>
+        <div class="msg"><span class="time">[10:30:10]</span><span class="err">❌</span><span class="detail">ERROR: relation "users2" does not exist</span></div>
+        <div class="msg"><span class="time">[10:29:55]</span><span class="ok">✅</span><span class="detail">CREATE INDEX concurrently completed (2.3s)</span></div>
+        <div class="msg"><span class="time">[10:29:50]</span><span class="warn">⚠</span><span class="detail">WARNING: VACUUM FULL requires exclusive lock</span></div>
+      </div>
+      <div class="bottom-content" id="btSqlPreview" style="display:none;">
+        <div class="sql-preview" id="sqlPreviewCode">-- No SQL generated yet</div>
+        <div class="sql-actions">
+          <button class="btn btn-ghost">📋 Copy</button>
+          <button class="btn btn-primary" id="sqlExecBtn" style="display:none;">▶ Execute</button>
+          <button class="btn btn-ghost">✏ Edit in Query Tab</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Vendor Selector -->
+<div class="vendor-bar">
+  <button class="vendor-btn active" onclick="switchVendor('pg')">PostgreSQL</button>
+  <button class="vendor-btn" onclick="switchVendor('mysql')">MySQL</button>
+  <button class="vendor-btn" onclick="switchVendor('sqlite')">SQLite</button>
+</div>
+
+<!-- Drop Confirm Dialog -->
+<div class="dialog-overlay" id="dropDialog">
+  <div class="dialog">
+    <div class="dialog-title">⚠ Drop Table</div>
+    <div class="dialog-body">
+      Are you sure you want to drop table <strong>"users"</strong>?<br><br>
+      ⚠ This action cannot be undone.<br>
+      • 12,450 rows will be permanently deleted<br>
+      • 3 foreign keys reference this table<br>
+      • 2 triggers will be removed
+      <div class="sql-preview" style="margin-top:10px;">DROP TABLE public.users CASCADE;</div>
+      Type <strong>"users"</strong> to confirm:
+      <input class="dialog-confirm-input" id="dropConfirmInput" placeholder="Type table name..." oninput="checkDropConfirm()" />
+    </div>
+    <div class="dialog-footer">
+      <button class="btn btn-ghost" onclick="hideDropDialog()">Cancel</button>
+      <button class="btn btn-danger" id="dropConfirmBtn" disabled>🗑 Drop</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Object tree data ──
+const treeData = {
+  pg: [
+    { icon:'🗂', label:'Tables', count:42, items:['users','orders','products','sessions','audit_log','roles','permissions','categories','tags','comments'], expandable:true, columns: {
+      users: [{icon:'🔑',name:'id',type:'int4'},{icon:'',name:'email',type:'varchar'},{icon:'',name:'name',type:'varchar'},{icon:'→',name:'role_id',type:'int4'},{icon:'',name:'created_at',type:'timestamptz'}]
+    }},
+    { icon:'👁', label:'Views', count:8, items:['active_users','order_summary','product_catalog'] },
+    { icon:'🔮', label:'Materialized Views', count:3, items:['monthly_stats','user_metrics','sales_report'] },
+    { icon:'⚡', label:'Functions', count:15, items:['get_user_by_email()','calculate_total()','validate_order()'] },
+    { icon:'📜', label:'Procedures', count:5, items:['sync_inventory()','cleanup_sessions()'] },
+    { icon:'⏰', label:'Triggers', count:12, items:['trg_audit_users','trg_update_timestamp','trg_validate_email'] },
+    { icon:'🔢', label:'Sequences', count:7, items:['users_id_seq','orders_id_seq'] },
+    { icon:'🏷', label:'Types', count:4, items:['order_status','user_role'] },
+    { icon:'🧩', label:'Extensions', count:6, items:['pg_stat_statements','uuid-ossp','postgis'] },
+    { icon:'🛡', label:'Policies', count:3, items:['users_rls','orders_rls'] },
+    { icon:'🌐', label:'Domains', count:1, items:['email_domain'] },
+  ],
+  mysql: [
+    { icon:'🗂', label:'Tables', count:38, items:['users','orders','products','sessions','audit_log','roles'], expandable:true, columns: {
+      users: [{icon:'🔑',name:'id',type:'int'},{icon:'',name:'email',type:'varchar(255)'},{icon:'',name:'name',type:'varchar(100)'},{icon:'→',name:'role_id',type:'int'},{icon:'',name:'created_at',type:'datetime'}]
+    }},
+    { icon:'👁', label:'Views', count:5, items:['active_users','order_summary'] },
+    { icon:'⚡', label:'Functions', count:10, items:['get_user()','calc_total()'] },
+    { icon:'📜', label:'Procedures', count:8, items:['sync_data()','cleanup()'] },
+    { icon:'⏰', label:'Triggers', count:6, items:['trg_audit','trg_timestamp'] },
+    { icon:'📅', label:'Events', count:2, items:['cleanup_old_sessions','daily_report'] },
+  ],
+  sqlite: [
+    { icon:'🗂', label:'Tables', count:15, items:['users','orders','products','sessions','config'], expandable:true, columns: {
+      users: [{icon:'🔑',name:'id',type:'INTEGER'},{icon:'',name:'email',type:'TEXT'},{icon:'',name:'name',type:'TEXT'},{icon:'→',name:'role_id',type:'INTEGER'},{icon:'',name:'created_at',type:'TEXT'}]
+    }},
+    { icon:'👁', label:'Views', count:3, items:['active_users','order_view'] },
+    { icon:'📇', label:'Indexes', count:8, items:['idx_users_email','idx_orders_date','idx_products_sku','sqlite_autoindex_users_1'] },
+    { icon:'⏰', label:'Triggers', count:2, items:['trg_updated_at','trg_audit'] },
+  ]
+};
+
+let currentVendor = 'pg';
+let currentNav = 'objects';
+
+function buildObjectTree(vendor) {
+  const tree = document.getElementById('objectTree');
+  const data = treeData[vendor] || [];
+  tree.innerHTML = '';
+  data.forEach((group, gi) => {
+    const g = document.createElement('div');
+    g.className = 'tree-group';
+    g.innerHTML = `
+      <div class="tree-group-header" onclick="toggleGroup(this)">
+        <span class="arrow">▸</span><span class="icon">${group.icon}</span> ${group.label} <span class="count">${group.count}</span>
+      </div>
+      <div class="tree-items">${(group.items||[]).map(item => {
+        if (group.expandable && group.columns && group.columns[item]) {
+          return `<div class="tree-item" onclick="openTab('${item}')" style="font-weight:500;">${item}</div>` +
+            group.columns[item].map(c =>
+              `<div class="tree-item" style="padding-left:20px;font-size:10px;">
+                ${c.icon === '🔑' ? '<span class="pk">🔑</span>' : c.icon === '→' ? '<span class="fk">→</span>' : '<span style="color:var(--text-dim)">·</span>'}
+                ${c.name} <span class="type">${c.type}</span>
+              </div>`
+            ).join('');
+        }
+        return `<div class="tree-item" onclick="openTab('${item}')">${item}</div>`;
+      }).join('')}</div>`;
+    tree.appendChild(g);
+  });
+}
+
+function toggleGroup(el) {
+  const arrow = el.querySelector('.arrow');
+  const items = el.nextElementSibling;
+  if (!items) return;
+  const isOpen = items.classList.contains('open');
+  items.classList.toggle('open');
+  arrow.classList.toggle('open');
+  arrow.textContent = isOpen ? '▸' : '▾';
+}
+
+function switchNav(nav) {
+  currentNav = nav;
+  document.querySelectorAll('.nav-icon[data-nav]').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.nav-icon[data-nav="${nav}"]`).classList.add('active');
+
+  ['panelObjects','panelDba','panelMonitor','panelDataops'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('panel' + nav.charAt(0).toUpperCase() + nav.slice(1)).style.display = '';
+
+  // Tab bar visibility
+  document.getElementById('contentTabBar').style.display = nav === 'objects' ? 'flex' : 'none';
+
+  // Content visibility
+  ['tabUsers','tabGetUser','tabTrigger','dbaView','monitorView','dataOpsView'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+
+  if (nav === 'objects') {
+    document.getElementById('tabUsers').style.display = '';
+  } else if (nav === 'dba') {
+    showDbaView('users');
+  } else if (nav === 'monitor') {
+    showMonitorView('sessions');
+  } else if (nav === 'dataops') {
+    showDataOpsView('export');
+  }
+}
+
+function switchContentTab(el, tabId) {
+  document.querySelectorAll('.content-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['tabUsers','tabGetUser','tabTrigger'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById(tabId).style.display = '';
+}
+
+function openTab(name) {
+  // Simple simulation — just switch to users tab
+  switchNav('objects');
+}
+
+function showDbaView(view) {
+  const el = document.getElementById('dbaView');
+  el.style.display = '';
+  if (view === 'users') {
+    el.innerHTML = `
+      <div class="sv-title">👤 Users <span class="badge-count">12</span>
+        <div style="margin-left:auto;"><button class="btn btn-primary">+ Create User</button></div>
+      </div>
+      <table class="grid">
+        <thead><tr><th>User</th><th>Host</th><th>Auth</th><th>Locked</th><th>Actions</th></tr></thead>
+        <tbody>
+          <tr><td>root</td><td>localhost</td><td>sha2</td><td>No</td><td><button class="btn btn-ghost" style="padding:2px 6px;">✏</button> <button class="btn btn-danger" style="padding:2px 6px;">🗑</button></td></tr>
+          <tr><td>app_user</td><td>%</td><td>sha2</td><td>No</td><td><button class="btn btn-ghost" style="padding:2px 6px;">✏</button> <button class="btn btn-danger" style="padding:2px 6px;">🗑</button></td></tr>
+          <tr><td>readonly</td><td>10.0.0.%</td><td>sha2</td><td>No</td><td><button class="btn btn-ghost" style="padding:2px 6px;">✏</button> <button class="btn btn-danger" style="padding:2px 6px;">🗑</button></td></tr>
+          <tr><td>backup_user</td><td>localhost</td><td>socket</td><td><span style="color:var(--yellow)">Yes</span></td><td><button class="btn btn-ghost" style="padding:2px 6px;">✏</button> <button class="btn btn-ghost" style="padding:2px 6px;">🔓</button></td></tr>
+        </tbody>
+      </table>`;
+  } else if (view === 'privileges') {
+    el.innerHTML = `
+      <div class="sv-title">🛡 Privileges: app_user <div style="margin-left:auto;"><button class="btn btn-primary">💾 Apply</button></div></div>
+      <div style="margin-bottom:10px;font-size:11px;">User: <strong style="color:var(--accent)">app_user</strong> &nbsp; Scope: <strong>Table</strong> &nbsp; Schema: <strong>public</strong></div>
+      <table class="grid">
+        <thead><tr><th>Object</th><th>SELECT</th><th>INSERT</th><th>UPDATE</th><th>DELETE</th><th>ALL</th></tr></thead>
+        <tbody>
+          <tr><td>users</td><td>☑</td><td>☑</td><td>☑</td><td>☐</td><td>☐</td></tr>
+          <tr><td>orders</td><td>☑</td><td>☑</td><td>☑</td><td>☑</td><td>☐</td></tr>
+          <tr><td>products</td><td>☑</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+          <tr><td style="color:var(--text-dim)">audit_log</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+        </tbody>
+      </table>
+      <div class="sql-preview" style="margin-top:12px;">GRANT SELECT, INSERT, UPDATE ON public.users TO app_user;
+GRANT ALL ON public.orders TO app_user;
+REVOKE DELETE ON public.users FROM app_user;</div>`;
+  } else if (view === 'variables') {
+    el.innerHTML = `
+      <div class="sv-title">⚙ Server Variables <div style="margin-left:auto;display:flex;gap:6px;"><button class="btn btn-ghost">Reset All</button><button class="btn btn-primary">💾 Apply</button></div></div>
+      <div style="margin-bottom:10px;font-size:11px;">Scope: <strong style="color:var(--accent)">Global</strong> &nbsp; Category: <strong>All</strong> &nbsp; <span style="color:var(--peach)">Modified: 2 variables</span></div>
+      <table class="grid">
+        <thead><tr><th>Variable</th><th>Value</th><th>Default</th><th>Context</th></tr></thead>
+        <tbody>
+          <tr><td>max_connections</td><td><span style="color:var(--peach)">150</span></td><td style="color:var(--text-dim)">100</td><td>🔄 reload</td></tr>
+          <tr><td>shared_buffers</td><td>256MB</td><td style="color:var(--text-dim)">128MB</td><td>🔁 restart</td></tr>
+          <tr><td>work_mem</td><td><span style="color:var(--peach)">8MB</span></td><td style="color:var(--text-dim)">4MB</td><td>⚡ user</td></tr>
+          <tr><td>maintenance_work_mem</td><td>64MB</td><td style="color:var(--text-dim)">64MB</td><td>⚡ user</td></tr>
+          <tr><td>effective_cache_size</td><td>4GB</td><td style="color:var(--text-dim)">4GB</td><td>⚡ user</td></tr>
+          <tr><td>log_min_duration_statement</td><td>-1</td><td style="color:var(--text-dim)">-1</td><td>👑 super</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-dim);">🔁 = Requires restart &nbsp; 🔄 = Requires reload &nbsp; 👑 = Superuser &nbsp; ⚡ = User session</div>`;
+  }
+}
+
+function showMonitorView(view) {
+  const el = document.getElementById('monitorView');
+  el.style.display = '';
+  ['tabUsers','tabGetUser','tabTrigger','dbaView','dataOpsView'].forEach(id => document.getElementById(id).style.display = 'none');
+
+  if (view === 'sessions') {
+    el.innerHTML = `
+      <div class="sv-title">🖥 Active Sessions <span class="badge-count">5</span>
+        <div class="auto-refresh"><div class="pulse"></div> Auto-refresh: 5s <button class="btn btn-ghost" style="padding:2px 6px;margin-left:4px;">⏸ Pause</button></div>
+      </div>
+      <div style="margin-bottom:10px;font-size:10px;color:var(--text-dim);">Filter: All &nbsp; State: Active &nbsp; User: All</div>
+      <div class="session-row selected">
+        <span class="session-dot active"></span>
+        <span class="session-pid">1234</span><span class="session-user">app_user</span><span class="session-db">mydb</span>
+        <span class="session-state">🟢 active</span><span class="session-dur">0.3s</span><span class="session-kill">⏹</span>
+      </div>
+      <div class="session-row">
+        <span class="session-dot idle-tx"></span>
+        <span class="session-pid">1235</span><span class="session-user">app_user</span><span class="session-db">mydb</span>
+        <span class="session-state">🟡 idle in tx — Lock</span><span class="session-dur">45s</span><span class="session-kill">⏹</span>
+      </div>
+      <div class="session-row">
+        <span class="session-dot active"></span>
+        <span class="session-pid">1236</span><span class="session-user">admin</span><span class="session-db">mydb</span>
+        <span class="session-state">🟢 active — IO</span><span class="session-dur">2.1s</span><span class="session-kill">⏹</span>
+      </div>
+      <div class="session-row">
+        <span class="session-dot idle"></span>
+        <span class="session-pid">1237</span><span class="session-user">readonly</span><span class="session-db">mydb</span>
+        <span class="session-state">⚪ idle</span><span class="session-dur">120s</span><span class="session-kill">⏹</span>
+      </div>
+      <div class="session-row">
+        <span class="session-dot active"></span>
+        <span class="session-pid">1238</span><span class="session-user">backup</span><span class="session-db">mydb</span>
+        <span class="session-state">🟢 active</span><span class="session-dur">5m 23s</span><span class="session-kill">⏹</span>
+      </div>
+      <div style="margin-top:16px;padding:12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius);">
+        <div style="font-size:11px;font-weight:500;margin-bottom:8px;">Selected: PID 1234</div>
+        <div style="font-size:10px;color:var(--text-muted);line-height:1.8;">
+          User: app_user &nbsp; Client: 10.0.0.5:52341<br>
+          Database: mydb &nbsp; Application: my-api<br>
+          State: active (0.3s)
+        </div>
+        <div class="sql-preview" style="margin:8px 0;">SELECT u.*, r.name as role_name
+FROM users u JOIN roles r ON u.role_id = r.id
+WHERE u.status = 'active'</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost">📋 Copy SQL</button>
+          <button class="btn btn-ghost" style="color:var(--yellow);">🚫 Cancel Query</button>
+          <button class="btn btn-danger">💀 Kill Connection</button>
+        </div>
+      </div>`;
+  } else if (view === 'tablestats') {
+    el.innerHTML = `
+      <div class="sv-title">📊 Table Statistics <div style="margin-left:auto;"><button class="btn btn-ghost">↻ Refresh</button></div></div>
+      <div style="margin-bottom:10px;font-size:10px;color:var(--text-dim);">Schema: public &nbsp; Sort: Total Size ▾</div>
+      <table class="grid">
+        <thead><tr><th>Table</th><th>Rows (est)</th><th>Total</th><th>Data</th><th>Index</th><th>Dead</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>orders</td><td>1.2M</td><td>892 MB</td><td>640 MB</td><td>252 MB</td><td>2.3%</td><td><button class="btn btn-ghost" style="padding:1px 6px;font-size:9px;">🧹</button></td></tr>
+          <tr><td>events</td><td>890K</td><td>456 MB</td><td>380 MB</td><td>76 MB</td><td>0.5%</td><td><button class="btn btn-ghost" style="padding:1px 6px;font-size:9px;">🧹</button></td></tr>
+          <tr><td>users</td><td>12K</td><td>4.2 MB</td><td>3.1 MB</td><td>1.1 MB</td><td>1.8%</td><td><button class="btn btn-ghost" style="padding:1px 6px;font-size:9px;">🧹</button></td></tr>
+          <tr><td style="color:var(--yellow)">sessions ⚠</td><td>45K</td><td>12 MB</td><td>9 MB</td><td>3 MB</td><td><span style="color:var(--red)">8.2%</span></td><td><button class="btn btn-ghost" style="padding:1px 6px;font-size:9px;color:var(--yellow)">🧹⚠</button></td></tr>
+        </tbody>
+      </table>
+      <div class="warning-banner" style="margin-top:10px;">⚠ sessions: Dead tuple ratio 8.2% exceeds 5% threshold</div>`;
+  } else if (view === 'indexstats') {
+    el.innerHTML = `
+      <div class="sv-title">📈 Index Statistics <div style="margin-left:auto;"><button class="btn btn-ghost">↻ Refresh</button></div></div>
+      <div style="margin-bottom:10px;font-size:10px;color:var(--text-dim);">Sort: Scans ASC (least used first)</div>
+      <table class="grid">
+        <thead><tr><th>Index</th><th>Table</th><th>Size</th><th>Scans</th><th>Rows Read</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td style="color:var(--yellow)">idx_orders_legacy</td><td>orders</td><td>45 MB</td><td style="color:var(--red)">0</td><td>0</td><td><span style="color:var(--yellow);font-size:10px;">⚠ Unused — consider DROP</span></td></tr>
+          <tr><td style="color:var(--yellow)">idx_sessions_old</td><td>sessions</td><td>12 MB</td><td style="color:var(--red)">0</td><td>0</td><td><span style="color:var(--yellow);font-size:10px;">⚠ Unused — consider DROP</span></td></tr>
+          <tr><td>idx_users_email</td><td>users</td><td>0.8 MB</td><td>45,678</td><td>45,680</td><td><span style="color:var(--green);font-size:10px;">✅ Active</span></td></tr>
+          <tr><td>idx_orders_date</td><td>orders</td><td>32 MB</td><td>12,345</td><td>890,000</td><td><span style="color:var(--green);font-size:10px;">✅ Active</span></td></tr>
+        </tbody>
+      </table>`;
+  } else if (view === 'topsql') {
+    el.innerHTML = `
+      <div class="sv-title">🏆 Top SQL <div style="margin-left:auto;font-size:10px;color:var(--text-dim);">Sort: Total Time ▾</div></div>
+      <table class="grid">
+        <thead><tr><th>Query</th><th>Calls</th><th>Total Time</th><th>Avg Time</th><th>Rows</th></tr></thead>
+        <tbody>
+          <tr><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">SELECT u.*, r.name FROM users u JOIN roles r ON...</td><td>45,678</td><td>892s</td><td>19.5ms</td><td>45,678</td></tr>
+          <tr><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">UPDATE orders SET status = $1 WHERE id = $2</td><td>12,345</td><td>456s</td><td>36.9ms</td><td>12,345</td></tr>
+          <tr><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">SELECT count(*) FROM events WHERE created_at > $1</td><td>890</td><td>234s</td><td>263ms</td><td>890</td></tr>
+        </tbody>
+      </table>`;
+  } else {
+    el.innerHTML = `<div class="empty-state"><div class="icon">🖧</div><div class="msg-text">${view} — Coming soon</div></div>`;
+  }
+}
+
+function showDataOpsView(view) {
+  const el = document.getElementById('dataOpsView');
+  el.style.display = '';
+  ['tabUsers','tabGetUser','tabTrigger','dbaView','monitorView'].forEach(id => document.getElementById(id).style.display = 'none');
+
+  if (view === 'export') {
+    el.innerHTML = `
+      <div class="sv-title">📤 Export Data</div>
+      <div style="font-size:11px;margin-bottom:16px;">Step 1 of 3: Select Source &nbsp; <span style="color:var(--accent)">● ●</span> <span style="color:var(--text-dim)">○</span></div>
+      <div style="font-size:11px;line-height:2;">
+        Source: <span style="color:var(--green)">● Table</span> &nbsp; ○ Custom Query<br>
+        Schema: <strong style="color:var(--accent)">public</strong>
+      </div>
+      <div style="margin:10px 0;font-size:11px;line-height:2;">
+        ☑ users &nbsp; ☑ orders &nbsp; ☐ products &nbsp; ☐ sessions &nbsp; ☐ audit_log
+      </div>
+      <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:16px;">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-primary">Next →</button>
+      </div>`;
+  } else if (view === 'dump') {
+    el.innerHTML = `
+      <div class="sv-title">💾 SQL Dump</div>
+      <div style="font-size:11px;margin-bottom:16px;">Step 1 of 3: Scope &nbsp; <span style="color:var(--accent)">●</span> <span style="color:var(--text-dim)">○ ○</span></div>
+      <div style="font-size:11px;line-height:2.2;">
+        <span style="color:var(--green)">● Full Database</span><br>
+        ○ Selected Tables<br>
+        ○ Schema Only (no data)
+      </div>
+      <div style="margin-top:16px;padding:10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius);font-size:10px;color:var(--text-dim);">
+        CLI Preview:<br>
+        <span style="color:var(--teal)">pg_dump -h localhost -p 5432 -U admin -d mydb -F p > dump.sql</span>
+      </div>
+      <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:16px;">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-primary">Next →</button>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div class="sv-title">${view === 'import' ? '📥 Import Data' : '📂 Restore'}</div>
+      <div class="empty-state" style="height:200px;">
+        <div class="icon">${view === 'import' ? '📥' : '📂'}</div>
+        <div class="msg-text">${view === 'import' ? 'Drop a file or click to browse' : 'Select a .sql file to restore'}</div>
+        <button class="btn btn-ghost">📁 Browse Files</button>
+      </div>`;
+  }
+}
+
+function switchBottomTab(el, tabId) {
+  document.querySelectorAll('.bottom-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['btResults','btMessages','btSqlPreview'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById(tabId).style.display = '';
+}
+
+function showSqlPreview() {
+  document.querySelectorAll('.bottom-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.bottom-tab')[2].classList.add('active');
+  ['btResults','btMessages'].forEach(id => document.getElementById(id).style.display = 'none');
+  const sp = document.getElementById('btSqlPreview');
+  sp.style.display = '';
+  document.getElementById('sqlPreviewCode').textContent = 'ALTER TABLE public.users ADD COLUMN phone varchar(20);';
+  document.getElementById('sqlExecBtn').style.display = '';
+}
+
+function showDropDialog() { document.getElementById('dropDialog').classList.add('show'); }
+function hideDropDialog() { document.getElementById('dropDialog').classList.remove('show'); document.getElementById('dropConfirmInput').value=''; }
+function checkDropConfirm() {
+  document.getElementById('dropConfirmBtn').disabled = document.getElementById('dropConfirmInput').value !== 'users';
+}
+
+function switchVendor(vendor) {
+  currentVendor = vendor;
+  document.querySelectorAll('.vendor-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  buildObjectTree(vendor);
+
+  // Schema selector
+  document.getElementById('schemaSelector').style.display = vendor === 'pg' ? '' : 'none';
+  // SQLite info
+  document.getElementById('sqliteInfo').style.display = vendor === 'sqlite' ? '' : 'none';
+
+  // Connection badge
+  const labels = { pg: 'prod-db (PostgreSQL 15.4)', mysql: 'prod-db (MySQL 8.0)', sqlite: 'app.db (SQLite 3.45.0)' };
+  document.getElementById('connLabel').textContent = labels[vendor];
+
+  // Nav disable for SQLite
+  const navDba = document.getElementById('navDba');
+  const navMonitor = document.getElementById('navMonitor');
+  if (vendor === 'sqlite') {
+    navDba.classList.add('disabled');
+    navMonitor.classList.add('disabled');
+    navDba.onclick = null;
+    navMonitor.onclick = null;
+    navDba.querySelector('.tooltip').textContent = 'Not available for SQLite';
+    navMonitor.querySelector('.tooltip').textContent = 'Not available for SQLite';
+    if (currentNav === 'dba' || currentNav === 'monitor') switchNav('objects');
+  } else {
+    navDba.classList.remove('disabled');
+    navMonitor.classList.remove('disabled');
+    navDba.onclick = () => switchNav('dba');
+    navMonitor.onclick = () => switchNav('monitor');
+    navDba.querySelector('.tooltip').textContent = 'DBA';
+    navMonitor.querySelector('.tooltip').textContent = 'Monitor';
+  }
+
+  // DBA label
+  const dbLabel = document.getElementById('dbSchemaLabel');
+  if (vendor === 'pg') dbLabel.textContent = 'Schemas';
+  else if (vendor === 'mysql') dbLabel.textContent = 'Databases';
+  else dbLabel.textContent = 'Databases/Schemas';
+}
+
+// Init
+buildObjectTree('pg');
+</script>
+
+</body>
+</html>

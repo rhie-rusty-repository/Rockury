@@ -232,6 +232,42 @@ const API: TElectronAPI = {
   [CHANNELS.SEED_CAPTURE]: (args) =>
     ipcRenderer.invoke(CHANNELS.SEED_CAPTURE, args),
 
+  // Schema Objects Introspection
+  [CHANNELS.SCHEMA_OBJECTS_FETCH]: (args) =>
+    ipcRenderer.invoke(CHANNELS.SCHEMA_OBJECTS_FETCH, args),
+  [CHANNELS.SCHEMA_OBJECT_DDL]: (args) =>
+    ipcRenderer.invoke(CHANNELS.SCHEMA_OBJECT_DDL, args),
+
+  // Query Safety
+  [CHANNELS.QUERY_CLASSIFY_SAFETY]: (args) =>
+    ipcRenderer.invoke(CHANNELS.QUERY_CLASSIFY_SAFETY, args),
+
+  // Object Browser
+  [CHANNELS.OB_TABLE_STATISTICS]: (args) =>
+    ipcRenderer.invoke(CHANNELS.OB_TABLE_STATISTICS, args),
+  [CHANNELS.OB_SQLITE_PRAGMA]: (args) =>
+    ipcRenderer.invoke(CHANNELS.OB_SQLITE_PRAGMA, args),
+  [CHANNELS.OB_SQLITE_DB_INFO]: (args) =>
+    ipcRenderer.invoke(CHANNELS.OB_SQLITE_DB_INFO, args),
+
+  // Seed (missing entries)
+  [CHANNELS.SEED_CAPTURE_WITH_FK]: (args) =>
+    ipcRenderer.invoke(CHANNELS.SEED_CAPTURE_WITH_FK, args),
+  [CHANNELS.SEED_APPLY]: (args) =>
+    ipcRenderer.invoke(CHANNELS.SEED_APPLY, args),
+
+  // Forward (missing entries)
+  [CHANNELS.FORWARD_PRE_CHECK]: (args) =>
+    ipcRenderer.invoke(CHANNELS.FORWARD_PRE_CHECK, args),
+  [CHANNELS.FORWARD_EXECUTE_STEP]: (args) =>
+    ipcRenderer.invoke(CHANNELS.FORWARD_EXECUTE_STEP, args),
+  [CHANNELS.FORWARD_ROLLBACK]: (args) =>
+    ipcRenderer.invoke(CHANNELS.FORWARD_ROLLBACK, args),
+
+  // Mocking (missing entry)
+  [CHANNELS.MOCK_APPLY]: (args) =>
+    ipcRenderer.invoke(CHANNELS.MOCK_APPLY, args),
+
   // Composite
   [CHANNELS.SCHEMA_VALIDATE_AGAINST_VERSION]: (args) =>
     ipcRenderer.invoke(CHANNELS.SCHEMA_VALIDATE_AGAINST_VERSION, args),

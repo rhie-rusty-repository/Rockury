@@ -19,6 +19,8 @@ export const queryService = {
         result = await executeMysqlScript(config, sql);
       } else if (config.dbType === 'postgresql') {
         result = await executePgScript(config, sql);
+      } else if (config.dbType === 'sqlite') {
+        result = executeSqliteScript(config, sql);
       } else {
         throw new Error(`Unsupported database type: ${config.dbType}`);
       }
@@ -328,4 +330,63 @@ function splitStatements(sql: string): string[] {
 
   if (current.trim()) statements.push(current.trim());
   return statements;
+}
+
+function executeSqliteScript(
+  config: { database: string },
+  sql: string,
+): IQueryResult {
+  const statements = splitStatements(sql);
+  if (statements.length === 0) {
+    throw new Error('SQL is empty.');
+  }
+
+  const db = createSqliteConnection({ database: config.database });
+
+  try {
+    let lastResult: IQueryResult = {
+      columns: [],
+      rows: [],
+      rowCount: 0,
+      executionTimeMs: 0,
+    };
+    let totalAffectedRows = 0;
+
+    for (const statement of statements) {
+      const upper = statement.trim().toUpperCase();
+      const isSelect = upper.startsWith('SELECT') || upper.startsWith('PRAGMA') || upper.startsWith('EXPLAIN');
+
+      if (isSelect) {
+        const rows = db.prepare(statement).all() as Record<string, unknown>[];
+        const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+        lastResult = {
+          columns,
+          rows,
+          rowCount: rows.length,
+          executionTimeMs: 0,
+        };
+      } else {
+        const info = db.prepare(statement).run();
+        totalAffectedRows += info.changes;
+        lastResult = {
+          columns: [],
+          rows: [],
+          rowCount: 0,
+          executionTimeMs: 0,
+          affectedRows: info.changes,
+        };
+      }
+    }
+
+    if (statements.length > 1) {
+      return {
+        ...lastResult,
+        affectedRows: totalAffectedRows,
+      };
+    }
+
+    return lastResult;
+  } finally {
+    closeSqliteConnection(db);
+  }
 }
