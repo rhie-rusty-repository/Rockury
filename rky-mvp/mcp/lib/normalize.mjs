@@ -74,7 +74,52 @@ export function normalizeTable(table, index) {
 
 export function normalizeTables(tables) {
   if (!Array.isArray(tables)) throw new Error('"tables" must be an array');
-  return tables.map(normalizeTable).map(deriveConstraints);
+  return tables.map((t, i) => mergeTableSpecs(deriveConstraints(normalizeTable(t, i)), t));
+}
+
+function sameCols(a = [], b = []) {
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
+/**
+ * Merge table-level friendly specs into constraints:
+ *   primaryKey: ["a","b"]                          → composite PK (overrides per-column pk)
+ *   uniques:    [["card_id","printing"], {name?, columns}]  → UNIQUE constraints
+ *   indexes:    [["tcgplayer_id"], {name?, columns}]        → non-unique CREATE INDEX (IDX)
+ *   checks:     ["amount >= 0", {name?, expression}]        → CHECK constraints
+ */
+function mergeTableSpecs(table, friendly) {
+  const constraints = [...table.constraints];
+  const name = table.name;
+  const has = (type, cols) => constraints.some((c) => c.type === type && sameCols(c.columns, cols));
+
+  if (Array.isArray(friendly.primaryKey) && friendly.primaryKey.length) {
+    for (let i = constraints.length - 1; i >= 0; i--) {
+      if (constraints[i].type === 'PK') constraints.splice(i, 1);
+    }
+    constraints.push({ type: 'PK', name: `pk_${name}`, columns: friendly.primaryKey });
+  }
+
+  for (const u of friendly.uniques ?? []) {
+    const cols = Array.isArray(u) ? u : u.columns;
+    if (!cols?.length || has('UK', cols)) continue;
+    constraints.push({ type: 'UK', name: (!Array.isArray(u) && u.name) || `uk_${name}_${cols.join('_')}`, columns: cols });
+  }
+
+  for (const ix of friendly.indexes ?? []) {
+    const cols = Array.isArray(ix) ? ix : ix.columns;
+    if (!cols?.length || has('IDX', cols)) continue;
+    constraints.push({ type: 'IDX', name: (!Array.isArray(ix) && ix.name) || `idx_${name}_${cols.join('_')}`, columns: cols });
+  }
+
+  for (const ck of friendly.checks ?? []) {
+    const expr = typeof ck === 'string' ? ck : ck.expression;
+    if (!expr) continue;
+    const nm = (typeof ck !== 'string' && ck.name) || `ck_${name}_${constraints.filter((c) => c.type === 'CHECK').length + 1}`;
+    constraints.push({ type: 'CHECK', name: nm, columns: [], checkExpression: expr });
+  }
+
+  return { ...table, constraints };
 }
 
 /**

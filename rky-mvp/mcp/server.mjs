@@ -51,6 +51,19 @@ const columnSchema = {
   },
 };
 
+const colList = { type: 'array', items: { type: 'string' }, minItems: 1 };
+const namedColList = {
+  oneOf: [
+    colList,
+    {
+      type: 'object',
+      required: ['columns'],
+      additionalProperties: false,
+      properties: { name: { type: 'string' }, columns: colList },
+    },
+  ],
+};
+
 const tableSchema = {
   type: 'object',
   required: ['name', 'columns'],
@@ -59,6 +72,24 @@ const tableSchema = {
     name: { type: 'string' },
     comment: { type: 'string' },
     columns: { type: 'array', minItems: 1, items: columnSchema },
+    primaryKey: { ...colList, description: 'Composite primary key column names (overrides per-column pk)' },
+    uniques: { type: 'array', description: 'UNIQUE constraints, single or composite', items: namedColList },
+    indexes: { type: 'array', description: 'Non-unique CREATE INDEX definitions (e.g. FK/join columns)', items: namedColList },
+    checks: {
+      type: 'array',
+      description: 'CHECK constraints',
+      items: {
+        oneOf: [
+          { type: 'string' },
+          {
+            type: 'object',
+            required: ['expression'],
+            additionalProperties: false,
+            properties: { name: { type: 'string' }, expression: { type: 'string' } },
+          },
+        ],
+      },
+    },
   },
 };
 

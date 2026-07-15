@@ -93,6 +93,24 @@ Column fields: `name`, `type` (required); optional `pk`, `nullable` (default
 true, false for PK), `unique`, `autoIncrement`, `default`, `comment`,
 `references { table, column, onDelete?, onUpdate? }`.
 
+Table-level fields (for composite/extra objects):
+
+```jsonc
+{
+  "name": "tcg_card_prices",
+  "columns": [ /* ... */ ],
+  "primaryKey": ["card_id", "printing"],          // composite PK (overrides per-column pk)
+  "uniques":    [["card_id", "printing"]],         // UNIQUE (single or composite)
+  "indexes":    [["card_id"]],                      // non-unique CREATE INDEX (FK/join cols)
+  "checks":     ["market_price >= 0"]              // CHECK constraints
+}
+```
+
+Generated DDL now emits: `SERIAL`/`BIGSERIAL` (pg) · `AUTO_INCREMENT` (mysql) ·
+`AUTOINCREMENT` (sqlite) for `autoIncrement` columns; table-level `PRIMARY KEY`,
+`UNIQUE` (incl. composite), `FOREIGN KEY`, `CHECK`; `CREATE INDEX`; and
+`COMMENT ON TABLE/COLUMN` (pg) from `comment` fields.
+
 `dbType` (on DDL tools / `get_diagram`) is one of `postgresql` (default),
 `mysql`, `mariadb`, `sqlite` — it only affects identifier quoting in DDL.
 
