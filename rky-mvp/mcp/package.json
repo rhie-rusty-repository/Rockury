@@ -1,0 +1,16 @@
+{
+  "name": "rky-schema-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server exposing rockury (rky) Schema Studio diagrams to external agents",
+  "bin": {
+    "rky-schema-mcp": "server.mjs"
+  },
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  }
+}
