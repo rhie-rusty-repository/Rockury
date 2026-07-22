@@ -15,7 +15,10 @@ export function getDb(): Database.Database {
 export function initLocalDb(): Database.Database {
   if (db) return db;
 
-  const dbPath = path.join(app.getPath('userData'), 'rockury.db');
+  // rky-mvp는 전용 DB 파일을 사용한다. 같은 userData 디렉터리를 공유하는 별도
+  // electron-vite "rockury" 빌드와 스키마가 호환되지 않아, rockury.db를 공유하면
+  // 마이그레이션이 서로를 깨뜨린다. 파일명은 mcp/lib/dbPath.mjs와 반드시 일치.
+  const dbPath = path.join(app.getPath('userData'), 'rockury-mvp.db');
   db = new Database(dbPath);
 
   runMigrations(db);

@@ -412,7 +412,14 @@ export function runMigrations(db: Database.Database): void {
 
   const migrate = db.transaction(() => {
     for (const sql of ALL_MIGRATIONS) {
-      db.exec(sql);
+      // 방어적 실행: 한 구문이 실패해도(예: 기존/이질적 스키마 테이블에 없는
+      // 컬럼으로 인덱스를 만들 때) 전체 부트스트랩을 롤백시키고 앱을 죽이지 않는다.
+      // 정상 DB에서는 CREATE ... IF NOT EXISTS 라 멱등하므로 영향이 없다.
+      try {
+        db.exec(sql);
+      } catch (err) {
+        console.error('[localDb] migration statement skipped:', err);
+      }
     }
 
     // Safe ALTER TABLE migrations (ignore if column already exists)
